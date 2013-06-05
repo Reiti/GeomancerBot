@@ -1,4 +1,4 @@
 GeomancerBot
 ============
 
-Geomancer bot for hon
+Geomancer bot for Heroes of Newerth.
