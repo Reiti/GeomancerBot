@@ -287,6 +287,25 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilQuick = skills.abilW
 		local abilCrystal = skills.abilR
 		core.findItems();
+		local itemSheepstick = core.itemSheepstick
+		
+		if not bActionTaken and not bTargetVuln then
+			if itemSheepstick then
+				local nRange = itemSheepStick:GetRange()
+				if itemSheepStick:CanActivate() and nLastHarassUtility > botBrain.nSheepstickTreshold then
+					if nTargetDistanceSq < (nRange*nRange) then
+						bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
+					end
+				end
+			end
+			if abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold then 
+				local nRange = abilDig:GetRange()
+				if nTargetDistanceSq < (nRange*nRange) then
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+				end
+			end
+		end
+	end
     --- Insert abilities code here, set bActionTaken to true 
     --- if an ability command has been given successfully
     
