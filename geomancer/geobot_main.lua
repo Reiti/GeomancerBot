@@ -389,7 +389,16 @@ local function HarassHeroExecuteOverride(botBrain)
 			
 			if abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
 				local nRange = abilGrasp:GetRange()
-				if nTargetDistanceSq < (nRange*nRange) then
+				local nMinManaLeft = 0
+				
+				if not abilDig:GetLevel() == 0 then
+					nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
+				end
+				if abilSand:CanActivate() then
+					nMinManaLeft = nMinManaLeft + abilSand:GetManaCost()
+				end
+				
+				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
 					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 				end
 			elseif abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
