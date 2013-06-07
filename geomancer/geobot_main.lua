@@ -89,7 +89,7 @@ object.heroName = 'Hero_Geomancer'
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
 behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Replenish", "Item_Steamboots"}
 behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
-behaviorLib.LateItems  = {}
+behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
 
 
 -- skillbuild table, 0=q, 1=w, 2=e, 3=r, 4=attri
@@ -180,6 +180,45 @@ object.oncombatevent     = object.oncombateventOverride
 
 
 
+
+------------------------------------------------------
+-- FindItems Override
+------------------------------------------------------
+local function funcFindItemsOverride(botBrain)
+	local bUpdated = object.FindItemsOld(botBrain)
+	
+	if core.itemSheepstick ~= nil and not core.itemSheepstick:IsValid() then
+		core.itemSheepStick = nil
+	end
+	
+	if core.itemFrostfield ~= nil and not core.itemFrostfield:IsValid() then
+		core.itemFrostField = nil
+	end
+	
+	if bUpdated then
+		if core.itemSheepstick then
+			return
+		end
+		local inventory = core.unitSelf:GetInventory(true)
+		for slot = 1, 12, 1 do
+			local curItem = inventory[slot]
+			if curItem then
+				if core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
+					core.VerboseLog("Sheep")
+					core.itemSheepstick = core.WrapInTable(curItem)
+				elseif core.itemFrostfield == nil and curItem:GetName() == "Item_FrostfieldPlate" then
+					core.VerboseLog("Frostfield")
+					core.itemFrostfield = core.WrapInTable(curItem)
+				elseif core.itemPortalkey == nil  and curItem:GetName() == "Itemp_PortalKey" then
+					core.VerboseLog("Portal")
+					core.itemPortalkey = core.WrapInTable(curItem)
+				end
+			end
+		end
+	end
+end
+object.FindItemsOld = core.FindItems
+core.FindItems = funcFindItemsOverride
 ------------------------------------------------------
 --            customharassutility override          --
 -- change utility according to usable spells here   --
