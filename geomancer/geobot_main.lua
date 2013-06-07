@@ -122,7 +122,7 @@ object.nSheepstickUse = 10
 --thresholds of aggression the bot must reach to use these abilities
 object.nDigThreshold = 30
 object.nSandThreshold = 60
-object.nGraspthreshold = 10
+object.nGraspThreshold = 10
 object.nCrystalThreshold = 70
 object.nPortalkeyThreshold = 40
 object.nFrostfieldThreshold = 60
@@ -131,6 +131,14 @@ object.nSheepstickThreshold = 40
 object.vecStunTargetPos = nil
 object.nDigTime = 0
 object.bStunning = false
+
+object.tStunRange = {}
+object.tStunRange["1"] = 700
+object.tStunRange["2"] = 800
+object.tStunRange["3"] = 900
+object.tStunRange["4"] = 1000
+
+object.nTimeNeededForDistance = 0
 
 --####################################################################
 --####################################################################
@@ -393,21 +401,20 @@ local function HarassHeroExecuteOverride(botBrain)
 			elseif abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
 				local nRange = abilDig:GetRange()
 				if nTargetDistanceSq < (nRange*nRange) then
-						if  object.bStunning == true then
-							BotEcho("In Stunning")
-							if Vector3.Distance2D(core.unitSelf:GetPosition(), vecStunTargetPos) < 500 then
-								BotEcho("Unstun")
-								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-								object.bStunning = false
-							end
-						else if HoN.GetGameTime()-object.nDigTime >100 then
+						if HoN.GetGameTime()-object.nDigTime >object.nTimeNeededForDistance then
 								object.nDigTime = HoN.GetGameTime()
-								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-								object.bStunning = true
-								BotEcho("bStunning is true")
 								vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+								if abilDig:GetLevel() == 1 then
+									object.nTimeNeededForDistance = Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())*(object.tStunRange["1"]/1000)
+								elseif abilDig:GetLevel() == 2 then
+									object.nTimeNeededForDistance = Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())*(object.tStunRange["2"]/1000)
+								elseif abilDig:GetLevel() == 3 then
+									object.nTimeNeededForDistance = Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())*(object.tStunRange["3"]/1000)
+								elseif abilDig:GetLevel() == 4 then
+									object.nTimeNeededForDistance = Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())*(object.tStunRange["4"]/1000)
+								end
+								
 						end
-					end
 				end
 			end
 			
