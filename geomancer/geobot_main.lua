@@ -130,7 +130,7 @@ object.nSheepstickThreshold = 40
 
 object.vecStunTargetPos = nil
 object.nDigTime = 0
-
+object.bStunning = false
 
 --####################################################################
 --####################################################################
@@ -326,9 +326,8 @@ behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride
 
 local function DontBreakStunUtility(botBrain)
 	local utility = 0
-	if core.unitSelf:HasState("State_Geomancer_Ability1_Self"") then
-		BotEcho(HoN.GetGameTime()-object.nDigTime)
-		utility = 2000
+	if core.unitSelf:HasState("State_Geomancer_Ability1_Self") then
+		utility = 1
 	end
 	return utility
 end
@@ -369,7 +368,6 @@ local function HarassHeroExecuteOverride(botBrain)
     local nLastHarassUtility = behaviorLib.lastHarassUtil
     local bCanSee = core.CanSeeUnit(botBrain, unitTarget)    
     local bActionTaken = false
-	    BotEcho(format("HarassUtil: %d", nLastHarassUtility))
     if core.CanSeeUnit(botBrain, unitTarget) then
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
 		local abilDig = skills.abilQ
@@ -389,10 +387,20 @@ local function HarassHeroExecuteOverride(botBrain)
 			if abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
 				local nRange = abilDig:GetRange()
 				if nTargetDistanceSq < (nRange*nRange) then
-					if HoN.GetGameTime()-object.nDigTime >100 then
-						bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-						object.nDigTime = HoN.GetGameTime()
-						vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+						if  object.bStunning == true then
+							BotEcho("In Stunning")
+							if Vector3.Distance2D(core.unitSelf:GetPosition(), vecStunTargetPos) < 500 then
+								BotEcho("Unstun")
+								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+								object.bStunning = false
+							end
+						else if HoN.GetGameTime()-object.nDigTime >100 then
+								object.nDigTime = HoN.GetGameTime()
+								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+								object.bStunning = true
+								BotEcho("bStunning is true")
+								vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+						end
 					end
 				end
 			end
