@@ -262,7 +262,13 @@ local function HarassHeroExecuteOverride(botBrain)
     local bCanSee = core.CanSeeUnit(botBrain, unitTarget)    
     local bActionTaken = false
     
-    
+    if core.CanSeeUnit(botBrain, unitTarget) then
+		local bTargetVuln = unitTarget:IsStunned) or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
+		local abilDig = skills.abilQ
+		local abilGrasp = skills.abilE
+		local abilQuick = skills.abilW
+		local abilCrystal = skills.abilR
+		core.findItems();
     --- Insert abilities code here, set bActionTaken to true 
     --- if an ability command has been given successfully
     
