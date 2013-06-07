@@ -387,7 +387,13 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 			end
 			
-			if abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
+			if abilSand:CanActivate() and not bTargetVuln and nLastHarassUtility > nSandThreshold then
+				local nRange = abilSand:GetRange()
+				
+				if nTargetDistanceSq < (nRange * nRange) then
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, vecTargetPosition)
+				end
+			elseif abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
 				local nRange = abilGrasp:GetRange()
 				local nMinManaLeft = 0
 				
@@ -411,6 +417,8 @@ local function HarassHeroExecuteOverride(botBrain)
 					end
 				end
 			end
+			
+			object.bTargetVulnOld = bTargetVuln
 			
 		end
 	end
