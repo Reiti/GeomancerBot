@@ -244,9 +244,39 @@ core.FindItems = funcFindItemsOverride
 -- @param: iunitentity hero
 -- @return: number
 local function CustomHarassUtilityFnOverride(hero)
-    return 0
+    local nUtil = 0
+     
+    if skills.abilQ:CanActivate() then
+        nUtil = nUtil + object.nDigUp
+    end
+ 
+    if skills.abilW:CanActivate() then
+        nUtil = nUtil + object.nSandUp
+    end
+	
+	if skills.abilE:CanActivate() then
+		nUtil = nUtil + object.nGraspUp
+	end
+	
+    if skills.abilR:CanActivate() then
+        nUtil = nUtil + object.nCrystalUp
+    end
+ 
+    if object.itemSheepstick and object.itemSheepstick:CanActivate() then
+        nUtil = nUtil + object.nSheepstickUp
+    end
+	
+	if object.itemPortalkey and object itemPortalkey:CanActivate() then 
+		nUtil = nUtil + object.nPortalkeyUp
+	end
+	
+	if object.itemFrostfield and object.itemFrostfield:CanActivate() then
+		nUtil = nUtil + object.nFrostfieldUp
+	end
+ 
+    return nUtil
 end
--- assisgn custom Harrass function to the behaviourLib object
+-- assign custom harass function to the behaviourLib object
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
 
