@@ -191,6 +191,34 @@ object.onthink 	= object.onthinkOverride
 -- @param: eventdata
 -- @return: none
 function object:oncombateventOverride(EventData)
+	self:oncombateventOld(EventData)
+ 
+    local nAddBonus = 0
+ 
+    if EventData.Type == "Ability" then
+        if EventData.InflictorName == "Ability_Geomancer1" then
+            nAddBonus = nAddBonus + object.nDigUse
+        elseif EventData.InflictorName == "Ability_Germancer2" then
+            nAddBonus = nAddBonus + object.nSandUse
+		elseif EventData.InflictorName == "Ability_Germancer3" then
+            nAddBonus = nAddBonus + object.nGraspUse
+        elseif EventData.InflictorName == "Ability_Geomancer4" then
+            nAddBonus = nAddBonus + object.nCrystalUse
+        end
+    elseif EventData.Type == "Item" then
+        if core.itemSheepstick ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemSheepstick:GetName() then
+            nAddBonus = nAddBonus + self.nSheepstickUse
+        elseif core.itemFrostfield ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemFrostfield:GetName() then
+            nAddBonus = nAddBonus + self.nFrostfieldUse
+        elseif core.itemPortalkey ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemPortalkey:GetName() then
+            nAddBonus = nAddBonus + self.nPortalkeyUse
+        end
+    end
+ 
+   if nAddBonus > 0 then
+        core.DecayBonus(self)
+        core.nHarassBonus = core.nHarassBonus + nAddBonus
+    end
 end
 -- override combat event trigger function.
 object.oncombateventOld = object.oncombatevent
@@ -237,6 +265,10 @@ local function funcFindItemsOverride(botBrain)
 end
 object.FindItemsOld = core.FindItems
 core.FindItems = funcFindItemsOverride
+
+
+
+
 ------------------------------------------------------
 --            customharassutility override          --
 -- change utility according to usable spells here   --
