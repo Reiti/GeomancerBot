@@ -101,14 +101,32 @@ object.tSkills = {
     4, 4, 4, 4, 4,
 }
 
--- bonus agression points if a skill/item is available for use
+-- bonus aggression points if a skill/item is available for use
+object.nDigUp = 20
+object.nSandUp = 15
+object.nGraspUp = 5
+object.nCrystalUp = 10
+object.nPortalkeyUp = 20
+object.nFrostfieldUp = 10
+object.nSheepstickUp = 15
 
-
--- bonus agression points that are applied to the bot upon successfully using a skill/item
-
+-- bonus aggression points that are applied to the bot upon successfully using a skill/item
+object.nDigUse = 30
+object.nSandUse = 15
+object.nGraspUse = 0
+object.nCrystalUse = 30
+object.nPortalkeyUse = 0
+object.nFrostfieldUse = 15
+object.nSheepstickUse = 10
 
 --thresholds of aggression the bot must reach to use these abilities
-
+object.nDigThreshold = 50
+object.nSandThreshold = 60
+object.nGraspthreshold = 10
+object.nCrystalThreshold = 70
+object.nPortalkeyThreshold = 40
+object.nFrostfieldThreshold = 60
+object.nSheepstickThreshold = 40
 
 
 
@@ -129,7 +147,7 @@ object.tSkills = {
 function object:SkillBuild()
     core.VerboseLog("skillbuild()")
 
--- takes care at load/reload, <name_#> to be replaced by some convinient name.
+-- takes care at load/reload, <name_#> to be replaced by some convenient name.
     local unitSelf = self.core.unitSelf
     if  skills.abilQ == nil then
         skills.abilQ = unitSelf:GetAbility(0)
