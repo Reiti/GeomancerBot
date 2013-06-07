@@ -374,7 +374,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
 		local abilDig = skills.abilQ
 		local abilGrasp = skills.abilE
-		local abilQuick = skills.abilW
+		local abilSand = skills.abilW
 		local abilCrystal = skills.abilR
 		local itemSheepstick = core.itemSheepstick
 		if not bActionTaken and not bTargetVuln then
@@ -386,7 +386,13 @@ local function HarassHeroExecuteOverride(botBrain)
 					end
 				end
 			end
-			if abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
+			
+			if abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
+				local nRange = abilGrasp:GetRange()
+				if nTargetDistanceSq < (nRange*nRange) then
+					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
+				end
+			elseif abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
 				local nRange = abilDig:GetRange()
 				if nTargetDistanceSq < (nRange*nRange) then
 					if HoN.GetGameTime()-object.nDigTime >100 then
@@ -396,6 +402,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					end
 				end
 			end
+			
 		end
 	end
     --- Insert abilities code here, set bActionTaken to true 
