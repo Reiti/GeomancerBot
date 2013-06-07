@@ -128,7 +128,8 @@ object.nPortalkeyThreshold = 40
 object.nFrostfieldThreshold = 60
 object.nSheepstickThreshold = 40
 
-
+object.vecStunTargetPos = nil
+object.nDigTime = 0
 
 
 --####################################################################
@@ -317,8 +318,30 @@ end
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
 
+-------------------------------------------------------------
+--					   Stunning Behavior		   --
+--  A behavior that makes sure the bot
+--  doesn't cancel it's own stun               --
+-------------------------------------------------------------
 
+local function DontBreakStunUtility(botBrain)
+	local utility = 0
+	if core.unitSelf:HasState("State_Geomancer_Ability1_Self"") then
+		BotEcho(HoN.GetGameTime()-object.nDigTime)
+		utility = 2000
+	end
+	return utility
+end
 
+local function DontBreakStunExecute(botBrain)
+	--Will probably add some targeting.
+end
+
+behaviorLib.DontBreakStunBehavior = {}
+behaviorLib.DontBreakStunBehavior["Utility"] = DontBreakStunUtility
+behaviorLib.DontBreakStunBehavior["Execute"] = DontBreakStunExecute
+behaviorLib.DontBreakStunBehavior["Name"] = "DontBreakStun"
+tinsert(behaviorLib.tBehaviors, behaviorLib.DontBreakStunBehavior)
 --------------------------------------------------------------
 --                    Harass Behavior                       --
 -- All code how to use abilities against enemies goes here  --
@@ -342,11 +365,11 @@ local function HarassHeroExecuteOverride(botBrain)
     local vecTargetPosition = unitTarget:GetPosition()
     local nTargetExtraRange = core.GetExtraRange(unitTarget)
     local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
-    
+
     local nLastHarassUtility = behaviorLib.lastHarassUtil
     local bCanSee = core.CanSeeUnit(botBrain, unitTarget)    
     local bActionTaken = false
-    
+	    BotEcho(format("HarassUtil: %d", nLastHarassUtility))
     if core.CanSeeUnit(botBrain, unitTarget) then
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
 		local abilDig = skills.abilQ
@@ -354,7 +377,6 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilQuick = skills.abilW
 		local abilCrystal = skills.abilR
 		local itemSheepstick = core.itemSheepstick
-		BotEcho(nLastHarassUtility)
 		if not bActionTaken and not bTargetVuln then
 			if itemSheepstick then
 				local nRange = itemSheepStick:GetRange()
@@ -364,10 +386,14 @@ local function HarassHeroExecuteOverride(botBrain)
 					end
 				end
 			end
-			if abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold then 
+			if abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
 				local nRange = abilDig:GetRange()
 				if nTargetDistanceSq < (nRange*nRange) then
-					bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+					if HoN.GetGameTime()-object.nDigTime >100 then
+						bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+						object.nDigTime = HoN.GetGameTime()
+						vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+					end
 				end
 			end
 		end
