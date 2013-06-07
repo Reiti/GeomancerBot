@@ -120,7 +120,7 @@ object.nFrostfieldUse = 15
 object.nSheepstickUse = 10
 
 --thresholds of aggression the bot must reach to use these abilities
-object.nDigThreshold = 50
+object.nDigThreshold = 30
 object.nSandThreshold = 60
 object.nGraspthreshold = 10
 object.nCrystalThreshold = 70
@@ -213,6 +213,11 @@ local function funcFindItemsOverride(botBrain)
 		core.itemFrostField = nil
 	end
 	
+	if core.itemPortalkey ~= nil and not core.itemPortalkey:IsValid() then
+		core.itemPortalkey = nil
+	end
+	
+	
 	if bUpdated then
 		if core.itemSheepstick then
 			return
@@ -266,7 +271,7 @@ local function CustomHarassUtilityFnOverride(hero)
         nUtil = nUtil + object.nSheepstickUp
     end
 	
-	if object.itemPortalkey and object itemPortalkey:CanActivate() then 
+	if object.itemPortalkey and object.itemPortalkey:CanActivate() then 
 		nUtil = nUtil + object.nPortalkeyUp
 	end
 	
@@ -311,14 +316,13 @@ local function HarassHeroExecuteOverride(botBrain)
     local bActionTaken = false
     
     if core.CanSeeUnit(botBrain, unitTarget) then
-		local bTargetVuln = unitTarget:IsStunned) or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
+		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
 		local abilDig = skills.abilQ
 		local abilGrasp = skills.abilE
 		local abilQuick = skills.abilW
 		local abilCrystal = skills.abilR
-		core.findItems();
 		local itemSheepstick = core.itemSheepstick
-		
+		BotEcho(nLastHarassUtility)
 		if not bActionTaken and not bTargetVuln then
 			if itemSheepstick then
 				local nRange = itemSheepStick:GetRange()
