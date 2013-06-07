@@ -68,7 +68,7 @@ local BotEcho, VerboseLog, BotLog = core.BotEcho, core.VerboseLog, core.BotLog
 local Clamp = core.Clamp
 
 
-BotEcho(object:GetName()..' loading <hero>_main...')
+BotEcho(object:GetName()..' loading geobot_main...')
 
 
 
@@ -82,21 +82,21 @@ BotEcho(object:GetName()..' loading <hero>_main...')
 --####################################################################
 
 -- hero_<hero>  to reference the internal hon name of a hero, Hero_Yogi ==wildsoul
-object.heroName = 'Hero_<hero>'
+object.heroName = 'Hero_Geomancer'
 
 
 --   item buy order. internal names  
-behaviorLib.StartingItems  = {}
-behaviorLib.LaneItems  = {}
-behaviorLib.MidItems  = {}
+behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
+behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Replenish", "Item_Steamboots"}
+behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
 behaviorLib.LateItems  = {}
 
 
 -- skillbuild table, 0=q, 1=w, 2=e, 3=r, 4=attri
 object.tSkills = {
-    1, 2, 0, 0, 0,
-    3, 0, 1, 1, 1, 
-    3, 2, 2, 2, 4,
+    0, 2, 2, 1, 2,
+    3, 2, 0, 0, 0, 
+    3, 1, 1, 1, 4,
     3, 4, 4, 4, 4,
     4, 4, 4, 4, 4,
 }
@@ -158,7 +158,6 @@ end
 -- @return: none
 function object:onthinkOverride(tGameVariables)
     self:onthinkOld(tGameVariables)
-
     -- custom code here
 end
 object.onthinkOld = object.onthink
