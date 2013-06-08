@@ -27,16 +27,16 @@
 --####################################################################
 --####															  ####
 --####		1. Add Stun Dynamics to cancel stun properly		  ####
---####		2. Add Stun Retreat logic							  ####
---####		2.5 Add Sand Retreat logic							  ####
+--####		2. Add Stun Retreat logic (Done!)							  ####
+--####		2.5 Add Sand Retreat logic (Done!)							  ####
 --####		3. Add PortalKey Retreat logic						  ####
 --####		4. Add PortalKey Aggression logic					  ####
 --#### 		5. Add FrostfieldPlate Aggression logic				  ####
 --####		6. Add FrostfieldPlate Retreat logic				  ####
 --####		7. Add Earths Grasp pushing logic					  ####
 --####		8. Add Sheepstick Aggression Logic					  ####
---#### 		9. Add Sheepstick Retreat logic						  ####
---####		10. Add Stun Prediction								  ####
+--#### 		9. Add Sheepstick Retreat logic		ssssss				  ####
+--####		10. Add Stun Prediction	(Done!)							  ####
 --####		11. Change Shopping Behaviour for Situational Items	  ####
 --####															  ####
 --####################################################################
