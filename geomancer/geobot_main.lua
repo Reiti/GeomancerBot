@@ -9,10 +9,38 @@
 --      \/_____/ \/_/\/_/ \/____/\/____/ \/___/  \/___/   \/__/  --
 -------------------------------------------------------------------
 -------------------------------------------------------------------
--- Skelbot v0.0000009
--- This bot represent the BARE minimum required for HoN to spawn a bot
--- and contains some very basic overrides you can fill in
+-- based on Skelbot v0.0000009
+-- -- This bot represent the BARE minimum required for HoN to spawn a bot
+-- -- and contains some very basic overrides you can fill in
+-- 
+-- GEOBOT v0.x
+-- This bot contains some basic geomancer logic and will be extended
 --
+
+--####################################################################
+--####################################################################
+--####################################################################
+--####															  ####
+--####							ToDo							  ####
+--####															  ####
+--####################################################################
+--####################################################################
+--####															  ####
+--####		1. Add Stun Dynamics to cancel stun properly		  ####
+--####		2. Add Stun Retreat logic							  ####
+--####		2.5 Add Sand Retreat logic							  ####
+--####		3. Add PortalKey Retreat logic						  ####
+--####		4. Add PortalKey Aggression logic					  ####
+--#### 		5. Add FrostfieldPlate Aggression logic				  ####
+--####		6. Add FrostfieldPlate Retreat logic				  ####
+--####		7. Add Earths Grasp pushing logic					  ####
+--####		8. Add Sheepstick Aggression Logic					  ####
+--#### 		9. Add Sheepstick Retreat logic						  ####
+--####		10. Add Stun Prediction								  ####
+--####		11. Change Shopping Behaviour for Situational Items	  ####
+--####															  ####
+--####################################################################
+
 
 --####################################################################
 --####################################################################
@@ -101,9 +129,12 @@ object.tSkills = {
     4, 4, 4, 4, 4,
 }
 
+behaviorLib.nCreepPushbackMul = 0.6 --default: 1
+behaviorLib.nTargetPositioningMul = 0.7 --default: 1
+
 -- bonus aggression points if a skill/item is available for use
-object.nDigUp = 20
-object.nSandUp = 15
+object.nDigUp = 15
+object.nSandUp = 10
 object.nGraspUp = 5
 object.nCrystalUp = 10
 object.nPortalkeyUp = 20
@@ -112,27 +143,63 @@ object.nSheepstickUp = 15
 
 -- bonus aggression points that are applied to the bot upon successfully using a skill/item
 object.nDigUse = 30
-object.nSandUse = 15
+object.nSandUse = 30
 object.nGraspUse = 0
 object.nCrystalUse = 30
 object.nPortalkeyUse = 0
-object.nFrostfieldUse = 15
-object.nSheepstickUse = 10
+object.nFrostfieldUse = 20
+object.nSheepstickUse = 15
 
 --thresholds of aggression the bot must reach to use these abilities
+<<<<<<< HEAD
 object.nDigThreshold = 30
 object.nSandThreshold = 60
 object.nGraspThreshold = 10
 object.nCrystalThreshold = 70
 object.nPortalkeyThreshold = 40
 object.nFrostfieldThreshold = 60
+=======
+object.nDigThreshold = 40
+object.nSandThreshold = 25
+object.nGraspThreshold = 10
+object.nCrystalThreshold = 50
+object.nDigWithPortalkeyThreshold = 30
+object.nFrostfieldThreshold = 50
+>>>>>>> a5d7bab13d447f09e9afb7198d3dab2debda1f97
 object.nSheepstickThreshold = 40
+
+object.nSlowedAggressionBonus = 10  -- only applicable for dig
+object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 object.vecStunTargetPos = nil
 object.nDigTime = 0
 object.bStunned = false
 
 object.nTimeNeededForDistance = 0
+
+------------ Function for finding the center of a group (used by ult and some other places). 
+------------ Kudos to Stolen_id for this
+local function groupCenter(tGroup, nMinCount)
+    if nMinCount == nil then nMinCount = 1 end
+      
+    if tGroup ~= nil then
+        local vGroupCenter = Vector3.Create()
+        local nGroupCount = 0
+        for id, creep in pairs(tGroup) do
+            vGroupCenter = vGroupCenter + creep:GetPosition()
+            nGroupCount = nGroupCount + 1
+        end
+          
+        if nGroupCount < nMinCount then
+            return nil
+        else
+            return vGroupCenter/nGroupCount-- center vector
+        end
+    else
+        return nil  
+    end
+end 
+
 
 --####################################################################
 --####################################################################
@@ -372,22 +439,27 @@ local function HarassHeroExecuteOverride(botBrain)
     local bActionTaken = false
     if core.CanSeeUnit(botBrain, unitTarget) then
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
+		local bTargetSlowed = unitTarget:GetMoveSpeed() < 200
+		local bTargetRooted = bTargetVuln or bTargetSlowed
 		local abilDig = skills.abilQ
 		local abilGrasp = skills.abilE
 		local abilSand = skills.abilW
 		local abilCrystal = skills.abilR
 		local itemSheepstick = core.itemSheepstick
-		if not bActionTaken and not bTargetVuln then
+		
+		if not bActionTaken then
 			if itemSheepstick then
 				local nRange = itemSheepStick:GetRange()
-				if itemSheepStick:CanActivate() and nLastHarassUtility > botBrain.nSheepstickTreshold then
-					if nTargetDistanceSq < (nRange*nRange) then
-						bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
-					end
+				if itemSheepStick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickTreshold and nTargetDistanceSq < (nRange*nRange) then
+					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
 				end
-			end
-			
-			if abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
+			elseif abilSand:CanActivate() and not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
+				local nRange = abilSand:GetRange()
+				
+				if nTargetDistanceSq < (nRange * nRange) then
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, vecTargetPosition)
+				end
+			elseif abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
 				local nRange = abilGrasp:GetRange()
 				local nMinManaLeft = 0
 				
@@ -401,35 +473,52 @@ local function HarassHeroExecuteOverride(botBrain)
 				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
 					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 				end
-			elseif abilDig:CanActivate() and nLastHarassUtility > botBrain.nDigThreshold  then 
+			elseif abilDig:CanActivate() then
 				local nRange = abilDig:GetRange()
-				if nTargetDistanceSq < (nRange*nRange) then
-						BotEcho(object.nTimeNeededForDistance)
-						BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
-						if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance then
-								BotEcho("Inside")
-								if object.bStunned == true then
-									BotEcho("Stunning")
-									bActionTaken = core.OrderAbility(botBrain, abilDig)
-									object.bStunned = false
-								else
-									BotEcho("Casting")
-									bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-									object.nDigTime = HoN.GetGameTime()
-									vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
-									object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
-									object.bStunned = true
-								end
+				local nRangeSq = nRange*nRange
+				if bTargetSlowed and not bTargetVuln then
+					if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
+						if nTargetDistanceSq < nRangeSq then
+							if (HoN.GetGameTime() - object.nDigTime) > 100 then
+								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+								object.nDigTime = HoN.GetGameTime()
+								vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+							end
 						end
+					end
+				elseif nLastHarassUtility > botBrain.nDigThreshold then
+					if nTargetDistanceSq < nRangeSq then
+						if (HoN.GetGameTime() - object.nDigTime) > 100 then
+							bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+							object.nDigTime = HoN.GetGameTime()
+							vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+						end
+					end
+				end
+			elseif abilCrystal:CanActivate() then
+				local nRange = abilCrystal:GetRange()
+				local nRangeSq = nRange*nRange
+				if bTargetRooted then
+					if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
+						if nTargetDistanceSq < nRangeSq then
+							-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
+							vecCrystalTargetPosition = groupCenter(core.localUnits["EnemyHeroes"], 1)
+							bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
+						end
+					end
+				elseif nLastHarassUtility > botBrain.nCrystalThreshold then
+					if nTargetDistanceSq < nRangeSq then
+						-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
+						vecCrystalTargetPosition = groupCenter(core.localUnits["EnemyHeroes"], 1)
+						bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
+					end
 				end
 			end
-			
+			object.bTargetVulnOld = bTargetVuln
 		end
 	end
     --- Insert abilities code here, set bActionTaken to true 
     --- if an ability command has been given successfully
-    
-    
     
     
     if not bActionTaken then
@@ -440,8 +529,7 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
-
-
+BotEcho ('success')
 
 
 
