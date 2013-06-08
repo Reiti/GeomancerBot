@@ -9,10 +9,38 @@
 --      \/_____/ \/_/\/_/ \/____/\/____/ \/___/  \/___/   \/__/  --
 -------------------------------------------------------------------
 -------------------------------------------------------------------
--- Skelbot v0.0000009
--- This bot represent the BARE minimum required for HoN to spawn a bot
--- and contains some very basic overrides you can fill in
+-- based on Skelbot v0.0000009
+-- -- This bot represent the BARE minimum required for HoN to spawn a bot
+-- -- and contains some very basic overrides you can fill in
+-- 
+-- GEOBOT v0.x
+-- This bot contains some basic geomancer logic and will be extended
 --
+
+--####################################################################
+--####################################################################
+--####################################################################
+--####															  ####
+--####							ToDo							  ####
+--####															  ####
+--####################################################################
+--####################################################################
+--####															  ####
+--####		1. Add Stun Dynamics to cancel stun properly		  ####
+--####		2. Add Stun Retreat logic							  ####
+--####		2.5 Add Sand Retreat logic							  ####
+--####		3. Add PortalKey Retreat logic						  ####
+--####		4. Add PortalKey Aggression logic					  ####
+--#### 		5. Add FrostfieldPlate Aggression logic				  ####
+--####		6. Add FrostfieldPlate Retreat logic				  ####
+--####		7. Add Earths Grasp pushing logic					  ####
+--####		8. Add Sheepstick Aggression Logic					  ####
+--#### 		9. Add Sheepstick Retreat logic						  ####
+--####		10. Add Stun Prediction								  ####
+--####		11. Change Shopping Behaviour for Situational Items	  ####
+--####															  ####
+--####################################################################
+
 
 --####################################################################
 --####################################################################
@@ -358,7 +386,7 @@ local function DontBreakStunUtility(botBrain)
 	local utility = 0
 	if core.unitSelf:HasState("State_Geomancer_Ability1_Self") then
 		BotEcho(HoN.GetGameTime()-object.nDigTime)
-		utility = 2000
+		utility = 9001
 	end
 	return utility
 end
@@ -492,8 +520,7 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
-
-
+BotEcho ('success')
 
 
 
