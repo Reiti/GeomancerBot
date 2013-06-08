@@ -590,17 +590,17 @@ local function RetreatExecuteOverride(botBrain)
 				end
 		   end
 		end
-		if behaviorLib.lastRetreatUtil >= object.nRetreatDigThreshold and abilDig:CanActivate() then
-			if HoN.GetGameTime()-object.nRetreatDigTime > 2000 then
-				BotEcho("Casting Retreat Dig")
-				local vecMyPos = unitSelf:GetPosition()
-				local wellPos = core.allyWell and core.allyWell:GetPosition() 
-				local targetPos = vecMyPos + Vector3.Create(wellPos.x/abs(wellPos.x), wellPos.y/abs(wellPos.y), wellPos.z)
-				BotEcho(format("My Pos: %d-%d | Taret Pos: %d-%d", vecMyPos.x, vecMyPos.y, targetPos.x, targetPos.y))
-				bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, targetPos)
-				object.nRetreatDigTime = HoN.GetGameTime()
-			end
-		end
+	--	if behaviorLib.lastRetreatUtil >= object.nRetreatDigThreshold and abilDig:CanActivate() then
+	--		if HoN.GetGameTime()-object.nRetreatDigTime > 2000 then
+	--			BotEcho("Casting Retreat Dig")
+	--			local vecMyPos = unitSelf:GetPosition()
+	--			local wellPos = core.allyWell and core.allyWell:GetPosition() 
+	--			local targetPos = vecMyPos + Vector3.Create(wellPos.x/abs(wellPos.x), wellPos.y/abs(wellPos.y), wellPos.z)
+	--			BotEcho(format("My Pos: %d-%d | Taret Pos: %d-%d", vecMyPos.x, vecMyPos.y, targetPos.x, targetPos.y))
+	--			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, targetPos)
+	--			object.nRetreatDigTime = HoN.GetGameTime()
+	--		end
+	--	end
 	end
 		if not bActionTaken then
 			return object.RetreatFromThreatExecuteOld(botBrain)
