@@ -151,31 +151,29 @@ object.nFrostfieldUse = 20
 object.nSheepstickUse = 15
 
 --thresholds of aggression the bot must reach to use these abilities
-<<<<<<< HEAD
-object.nDigThreshold = 30
-object.nSandThreshold = 60
-object.nGraspThreshold = 10
-object.nCrystalThreshold = 70
-object.nPortalkeyThreshold = 40
-object.nFrostfieldThreshold = 60
-=======
 object.nDigThreshold = 40
 object.nSandThreshold = 25
 object.nGraspThreshold = 10
 object.nCrystalThreshold = 50
 object.nDigWithPortalkeyThreshold = 30
 object.nFrostfieldThreshold = 50
->>>>>>> a5d7bab13d447f09e9afb7198d3dab2debda1f97
 object.nSheepstickThreshold = 40
 
 object.nSlowedAggressionBonus = 10  -- only applicable for dig
 object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
+
+-- thresholds for retreating
+object.nRetreatQuicksandThreshold = 60
+object.nRetreatDigThreshold = 60
+--values used for correct placement and casting of skills
 object.vecStunTargetPos = nil
 object.nDigTime = 0
 object.bStunned = false
-
 object.nTimeNeededForDistance = 0
+object.nDigStunRadius = 250
+object.nQuicksandRadius = 	250
+object.nRetreatDigTime = 0
 
 ------------ Function for finding the center of a group (used by ult and some other places). 
 ------------ Kudos to Stolen_id for this
@@ -410,6 +408,22 @@ behaviorLib.DontBreakStunBehavior["Utility"] = DontBreakStunUtility
 behaviorLib.DontBreakStunBehavior["Execute"] = DontBreakStunExecute
 behaviorLib.DontBreakStunBehavior["Name"] = "DontBreakStun"
 tinsert(behaviorLib.tBehaviors, behaviorLib.DontBreakStunBehavior)
+
+
+
+--------------------------------------------------------------
+-- method to predict movement of target unit      -----
+-- used for prediction in casting stun and slow ------
+--------------------------------------------------------------
+local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius) 
+	if unitTarget.blsMemoryUnit then
+		if unitTarget.storedPosition and unitTarget.lastStoredPosition then
+			local vecLastDirection = Vector3.Normalize(unitTarget.storedPosition - unitTarget.lastStoredPosition)
+			 return vecTarget + vecLastDirection*radius
+		end
+	end
+	return vecTarget
+end
 --------------------------------------------------------------
 --                    Harass Behavior                       --
 -- All code how to use abilities against enemies goes here  --
@@ -457,7 +471,8 @@ local function HarassHeroExecuteOverride(botBrain)
 				local nRange = abilSand:GetRange()
 				
 				if nTargetDistanceSq < (nRange * nRange) then
-					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, vecTargetPosition)
+					BotEcho("Casting Sand")
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, PredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
 				end
 			elseif abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
 				local nRange = abilGrasp:GetRange()
@@ -479,19 +494,45 @@ local function HarassHeroExecuteOverride(botBrain)
 				if bTargetSlowed and not bTargetVuln then
 					if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
 						if nTargetDistanceSq < nRangeSq then
-							if (HoN.GetGameTime() - object.nDigTime) > 100 then
-								bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-								object.nDigTime = HoN.GetGameTime()
-								vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
-							end
+							BotEcho(object.nTimeNeededForDistance)
+							BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
+							if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance then
+									BotEcho("Inside")
+									if object.bStunned == true then
+										BotEcho("Stunning")
+										bActionTaken = core.OrderAbility(botBrain, abilDig)
+										object.bStunned = false
+									else
+										BotEcho("Casting Stun")
+										bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+										object.nDigTime = HoN.GetGameTime()
+										vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+										vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
+										object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
+										object.bStunned = true
+									end
 						end
 					end
-				elseif nLastHarassUtility > botBrain.nDigThreshold then
+				end
+			 elseif nLastHarassUtility > botBrain.nDigThreshold then
 					if nTargetDistanceSq < nRangeSq then
-						if (HoN.GetGameTime() - object.nDigTime) > 100 then
-							bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-							object.nDigTime = HoN.GetGameTime()
-							vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+						BotEcho(object.nTimeNeededForDistance)
+						BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
+						if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance then
+								BotEcho("Inside")
+								if object.bStunned == true then
+									BotEcho("Stunning")
+									bActionTaken = core.OrderAbility(botBrain, abilDig)
+									object.bStunned = false
+								else
+									BotEcho("Casting Stun")
+									bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+									object.nDigTime = HoN.GetGameTime()
+									vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+									vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos, object.nDigStunRadius) 
+									object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
+									object.bStunned = true
+								end
 						end
 					end
 				end
@@ -502,7 +543,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
 						if nTargetDistanceSq < nRangeSq then
 							-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
-							vecCrystalTargetPosition = groupCenter(core.localUnits["EnemyHeroes"], 1)
+							 vecCrystalTargetPosition = groupCenter(core.localUnits["EnemyHeroes"], 1)
 							bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 						end
 					end
@@ -529,7 +570,47 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
+
+local function RetreatExecuteOverride(botBrain)
+	local bActionTaken = false
+	local unitSelf = core.unitSelf
+	local abilDig = skills.abilQ
+	local abilQuick = skills.abilW
+	if not bActionTaken then
+		local tThreats = core.localUnits["EnemyHeroes"]
+		if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
+			BotEcho("Casting Retreat Slow")
+			local vecMyPos = unitSelf:GetPosition()
+			local nRange = abilQuick:GetRange()
+			for key,hero in pairs(tThreats) do
+				local heroPos = hero:GetPosition()
+				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+				if nTargetDistanceSq < (nRange*nRange) then
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+				end
+		   end
+		end
+		if behaviorLib.lastRetreatUtil >= object.nRetreatDigThreshold and abilDig:CanActivate() then
+			if HoN.GetGameTime()-object.nRetreatDigTime > 2000 then
+				BotEcho("Casting Retreat Dig")
+				local vecMyPos = unitSelf:GetPosition()
+				local wellPos = core.allyWell and core.allyWell:GetPosition() 
+				local targetPos = vecMyPos + Vector3.Create(wellPos.x/abs(wellPos.x), wellPos.y/abs(wellPos.y), wellPos.z)
+				BotEcho(format("My Pos: %d-%d | Taret Pos: %d-%d", vecMyPos.x, vecMyPos.y, targetPos.x, targetPos.y))
+				bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, targetPos)
+				object.nRetreatDigTime = HoN.GetGameTime()
+			end
+		end
+	end
+		if not bActionTaken then
+			return object.RetreatFromThreatExecuteOld(botBrain)
+		end
+end
+object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
+behaviorLib.RetreatFromThreatBehavior["Execute"] = RetreatExecuteOverride
+
 BotEcho ('success')
+
 
 
 
