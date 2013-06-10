@@ -142,7 +142,7 @@ object.nFrostfieldUp = 8
 object.nSheepstickUp = 7
 
 -- bonus aggression points that are applied to the bot upon successfully using a skill/item
-object.nDigUse = 60
+object.nDigUse =60 
 object.nSandUse = 50
 object.nGraspUse = 0
 object.nCrystalUse = 50
@@ -164,8 +164,8 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 
 -- thresholds for retreating
-object.nRetreatQuicksandThreshold = 60
-object.nRetreatDigThreshold = 60
+object.nRetreatQuicksandThreshold = 80
+object.nRetreatDigThreshold = 80
 --values used for correct placement and casting of skills
 object.vecStunTargetPos = nil
 object.nDigTime = 0
@@ -306,13 +306,16 @@ local function funcFindItemsOverride(botBrain)
 	end
 	
 	if core.itemFrostfield ~= nil and not core.itemFrostfield:IsValid() then
-		core.itemFrostField = nil
+		core.itemFrostfield = nil
 	end
 	
 	if core.itemPortalkey ~= nil and not core.itemPortalkey:IsValid() then
 		core.itemPortalkey = nil
 	end
 	
+	if core.itemReplenish ~= nil and not core.itemReplenish:IsValid() then
+		core.itemReplenish = nil
+	end
 	
 	if bUpdated then
 		if core.itemSheepstick then
@@ -328,9 +331,12 @@ local function funcFindItemsOverride(botBrain)
 				elseif core.itemFrostfield == nil and curItem:GetName() == "Item_FrostfieldPlate" then
 					core.VerboseLog("Frostfield")
 					core.itemFrostfield = core.WrapInTable(curItem)
-				elseif core.itemPortalkey == nil  and curItem:GetName() == "Itemp_PortalKey" then
+				elseif core.itemPortalkey == nil  and curItem:GetName() == "Item_PortalKey" then
 					core.VerboseLog("Portal")
 					core.itemPortalkey = core.WrapInTable(curItem)
+				elseif core.itemReplenish == nil and curItem:GetName() == "Item_Replenish" then
+					core.VerboseLog("Replenish")
+					core.itemReplenish = core.WrapInTable(curItem)
 				end
 			end
 		end
@@ -463,8 +469,8 @@ local function HarassHeroExecuteOverride(botBrain)
 		
 		if not bActionTaken then
 			if itemSheepstick then
-				local nRange = itemSheepStick:GetRange()
-				if itemSheepStick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickTreshold and nTargetDistanceSq < (nRange*nRange) then
+				local nRange = itemSheepstick:GetRange()
+				if itemSheepstick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickThreshold and nTargetDistanceSq < (nRange*nRange) then
 					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
 				end
 			elseif abilSand:CanActivate() and not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
@@ -491,6 +497,14 @@ local function HarassHeroExecuteOverride(botBrain)
 			elseif abilDig:CanActivate() then
 				local nRange = abilDig:GetRange()
 				local nRangeSq = nRange*nRange
+				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
+					if nLastHarassUtility > botBrain.nDigThreshold then
+						if nTargetDistanceSq < nRangeSq then
+							core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+							bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecTargetPosition)
+						end
+					end
+				end
 				if bTargetSlowed and not bTargetVuln then
 					if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
 						if nTargetDistanceSq < nRangeSq then
@@ -539,6 +553,9 @@ local function HarassHeroExecuteOverride(botBrain)
 			elseif abilCrystal:CanActivate() then
 				local nRange = abilCrystal:GetRange()
 				local nRangeSq = nRange*nRange
+				if core.itemFrostfield and core.itemFrostfield:CanActivate() then
+					core.OrderItemClamp(botBrain, unitSelf, core.itemFrostfield)
+				end
 				if bTargetRooted then
 					if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
 						if nTargetDistanceSq < nRangeSq then
@@ -609,6 +626,22 @@ end
 object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
 behaviorLib.RetreatFromThreatBehavior["Execute"] = RetreatExecuteOverride
 
+local function ManaRingAlwaysUtility(botBrain) 
+	if(core.itemReplenish and core.itemReplenish:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-135))  then
+		return 100
+	end
+	return 0
+end
+
+local function ManaRingAlwaysExecute(botBrain)
+
+		core.OrderItemClamp(botBrain, unitSelf, core.itemReplenish)
+end
+behaviorLib.ManaRingAlwaysBehavior = {}
+behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
+behaviorLib.ManaRingAlwaysBehavior["Execute"] = ManaRingAlwaysExecute
+behaviorLib.ManaRingAlwaysBehavior["Name"] = "ManaRingAlways"
+tinsert(behaviorLib.tBehaviors, behaviorLib.ManaRingAlwaysBehavior)
 BotEcho ('success')
 
 
