@@ -198,6 +198,41 @@ local function groupCenter(tGroup, nMinCount)
     end
 end 
 
+--copypasta from snippet compedium
+local function funcBestTargetAOE(tEnemyHeroes, unitTarget, nRange)
+    local nHeroes = core.NumberElements(tEnemyHeroes)
+    if nHeroes <= 1 then
+        return unitTarget
+    end
+ 
+    local tTemp = core.CopyTable(tEnemyHeroes)
+ 
+    local nRangeSq = nRange*nRange
+    local nDistSq = 0
+    local unitBestTarget = nil
+    local nBestTargetsHit = 0
+ 
+    for nTargetID,unitTarget in pairs(tEnemyHeroes) do
+        local nTargetsHit = 1
+        local vecCurrentTargetsPosition = unitTarget:GetPosition()
+        for nHeroID,unitHero in pairs(tTemp) do
+            if nTargetID ~= nHeroID then
+                nDistSq = Vector3.Distance2DSq(vecCurrentTargetsPosition, unitHero:GetPosition())
+                if nDistSq < nRangeSq then
+                    nTargetsHit = nTargetsHit + 1
+                end
+            end
+        end
+ 
+        if nTargetsHit > nBestTargetsHit then
+            nBestTargetsHit = nTargetsHit
+            unitBestTarget = unitTarget
+        end
+    end
+ 
+    return unitTarget
+end
+
 
 --####################################################################
 --####################################################################
@@ -499,9 +534,10 @@ local function HarassHeroExecuteOverride(botBrain)
 				local nRangeSq = nRange*nRange
 				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 					if nLastHarassUtility > botBrain.nDigThreshold then
-						if nTargetDistanceSq < nRangeSq then
+						if nTargetDistanceSq > object.nDigStunRadius and nTargetDistanceSq < nRangeSq then
+							 vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius):GetPosition()
 							core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-							bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecTargetPosition)
+							bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
 						end
 					end
 				end
