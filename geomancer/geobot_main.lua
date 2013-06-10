@@ -167,8 +167,8 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 
 -- thresholds for retreating
-object.nRetreatQuicksandThreshold = 80
-object.nRetreatDigThreshold = 80
+object.nRetreatQuicksandThreshold = 50
+object.nRetreatDigThreshold = 55
 
 object.nOldRetreatFactor = 0.9
 object.nMaxLevelDifference = 4
@@ -700,8 +700,7 @@ local function ManaRingAlwaysUtility(botBrain)
 end
 
 local function ManaRingAlwaysExecute(botBrain)
-
-		core.OrderItemClamp(botBrain, unitSelf, core.itemReplenish)
+		core.OrderItemClamp(botBrain, unitSelf, core.itemReplenish, true)
 end
 behaviorLib.ManaRingAlwaysBehavior = {}
 behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
@@ -802,7 +801,7 @@ local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
 	for id, enemy in pairs(tEnemyTeam) do
 		nUtility = nUtility + funcGetThreatOfEnemy(enemy) / nAllies
 	end
-	return Clamp(nUtility, 0, 100)
+	return Clamp(nUtility, 0, 60)
 end
 
 local function funcRetreatFromThreatExecuteOverride(botBrain)
