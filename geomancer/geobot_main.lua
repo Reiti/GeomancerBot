@@ -115,7 +115,7 @@ object.heroName = 'Hero_Geomancer'
 
 --   item buy order. internal names  
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Replenish", "Item_Steamboots"}
+behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots", "Item_Replenish"}
 behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
 behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
 
