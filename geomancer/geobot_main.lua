@@ -27,17 +27,20 @@
 --####################################################################
 --####															  ####
 --####		1. Add Stun Dynamics to cancel stun properly		  ####
---####		2. Add Stun Retreat logic (Done!)							  ####
---####		2.5 Add Sand Retreat logic (Done!)							  ####
+--####		2. Add Stun Retreat logic							  ####
+--####		2.5 Add Sand Retreat logic (Done!)					  ####
 --####		3. Add PortalKey Retreat logic						  ####
 --####		4. Add PortalKey Aggression logic					  ####
 --#### 		5. Add FrostfieldPlate Aggression logic				  ####
 --####		6. Add FrostfieldPlate Retreat logic				  ####
 --####		7. Add Earths Grasp pushing logic					  ####
 --####		8. Add Sheepstick Aggression Logic					  ####
---#### 		9. Add Sheepstick Retreat logic		ssssss				  ####
---####		10. Add Stun Prediction	(Done!)							  ####
+--#### 		9. Add Sheepstick Retreat logic		ssssss			  ####
+--####		10. Add Stun Prediction	(Done!)						  ####
 --####		11. Change Shopping Behaviour for Situational Items	  ####
+--####		12. Implement ManaRing usage (Done!)				  ####
+--####		13. Implement dyn-harass-util for self HP/Mana		  ####
+--####		14. Implement dyn-harass-util for enemy HP/Mana		  ####
 --####															  ####
 --####################################################################
 
@@ -142,19 +145,19 @@ object.nFrostfieldUp = 8
 object.nSheepstickUp = 7
 
 -- bonus aggression points that are applied to the bot upon successfully using a skill/item
-object.nDigUse =60 
-object.nSandUse = 50
+object.nDigUse = 47
+object.nSandUse = 38
 object.nGraspUse = 0
-object.nCrystalUse = 50
+object.nCrystalUse = 30
 object.nPortalkeyUse = 0
-object.nFrostfieldUse = 30
-object.nSheepstickUse = 15
+object.nFrostfieldUse = 18
+object.nSheepstickUse = 17
 
 --thresholds of aggression the bot must reach to use these abilities
-object.nDigThreshold = 56
+object.nDigThreshold = 51
 object.nSandThreshold = 35
 object.nGraspThreshold = 6
-object.nCrystalThreshold = 70
+object.nCrystalThreshold = 61
 object.nDigWithPortalkeyThreshold = 30
 object.nFrostfieldThreshold = 50
 object.nSheepstickThreshold = 40
@@ -367,7 +370,7 @@ local function funcFindItemsOverride(botBrain)
 					core.VerboseLog("Frostfield")
 					core.itemFrostfield = core.WrapInTable(curItem)
 				elseif core.itemPortalkey == nil  and curItem:GetName() == "Item_PortalKey" then
-					core.VerboseLog("Portal")
+					core.VerboseLog("PortalKey")
 					core.itemPortalkey = core.WrapInTable(curItem)
 				elseif core.itemReplenish == nil and curItem:GetName() == "Item_Replenish" then
 					core.VerboseLog("Replenish")
@@ -391,36 +394,57 @@ core.FindItems = funcFindItemsOverride
 -- @return: number
 local function CustomHarassUtilityFnOverride(hero)
     local nUtil = 0
+	local nTotalMana = 0
      
     if skills.abilQ:CanActivate() then
         nUtil = nUtil + object.nDigUp
+		nTotalMana = skills.abilQ:GetManaCost()
     end
  
     if skills.abilW:CanActivate() then
         nUtil = nUtil + object.nSandUp
+		nTotalMana = nTotalMana + skills.abilW:GetManaCost()
     end
 	
 	if skills.abilE:CanActivate() then
 		nUtil = nUtil + object.nGraspUp
+		nTotalMana = nTotalMana + skills.abilE:GetManaCost()
 	end
 	
     if skills.abilR:CanActivate() then
         nUtil = nUtil + object.nCrystalUp
+		nTotalMana = nTotalMana + skills.abilR:GetManaCost()
     end
  
     if object.itemSheepstick and object.itemSheepstick:CanActivate() then
         nUtil = nUtil + object.nSheepstickUp
+		nTotalMana = nTotalMana + object.itemSheepstick:GetManaCost()
     end
 	
 	if object.itemPortalkey and object.itemPortalkey:CanActivate() then 
 		nUtil = nUtil + object.nPortalkeyUp
+		nTotalMana = nTotalMana + object.itemPortalkey:GetManaCost()
 	end
 	
 	if object.itemFrostfield and object.itemFrostfield:CanActivate() then
 		nUtil = nUtil + object.nFrostfieldUp
+		nTotalMana = nTotalMana + object.itemFrostfield:GetManaCost()
 	end
- 
-    return nUtil
+	
+	local unitSelf = core.unitSelf
+	local nUtilMul = 0
+	
+	nUtilMul = unitSelf:GetMana() / nTotalMana
+	
+	if nUtilMul > 1 then
+		nUtilMul = 1
+	end
+	
+	if not unitSelf:GetHealthPercent > 70 then
+		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent / 100 ) + 0.3 )
+	end
+	
+    return nUtil * nUtilMul
 end
 -- assign custom harass function to the behaviourLib object
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
