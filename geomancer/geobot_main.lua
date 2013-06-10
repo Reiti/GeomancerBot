@@ -133,28 +133,28 @@ behaviorLib.nCreepPushbackMul = 0.6 --default: 1
 behaviorLib.nTargetPositioningMul = 0.7 --default: 1
 
 -- bonus aggression points if a skill/item is available for use
-object.nDigUp = 15
-object.nSandUp = 10
+object.nDigUp = 27
+object.nSandUp = 23
 object.nGraspUp = 5
 object.nCrystalUp = 10
-object.nPortalkeyUp = 20
-object.nFrostfieldUp = 10
-object.nSheepstickUp = 15
+object.nPortalkeyUp = 15
+object.nFrostfieldUp = 8
+object.nSheepstickUp = 7
 
 -- bonus aggression points that are applied to the bot upon successfully using a skill/item
-object.nDigUse = 30
-object.nSandUse = 30
+object.nDigUse = 60
+object.nSandUse = 50
 object.nGraspUse = 0
-object.nCrystalUse = 30
+object.nCrystalUse = 50
 object.nPortalkeyUse = 0
-object.nFrostfieldUse = 20
+object.nFrostfieldUse = 30
 object.nSheepstickUse = 15
 
 --thresholds of aggression the bot must reach to use these abilities
-object.nDigThreshold = 40
-object.nSandThreshold = 25
-object.nGraspThreshold = 10
-object.nCrystalThreshold = 50
+object.nDigThreshold = 56
+object.nSandThreshold = 35
+object.nGraspThreshold = 6
+object.nCrystalThreshold = 70
 object.nDigWithPortalkeyThreshold = 30
 object.nFrostfieldThreshold = 50
 object.nSheepstickThreshold = 40
