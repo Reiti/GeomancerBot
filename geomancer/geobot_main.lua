@@ -169,6 +169,11 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 -- thresholds for retreating
 object.nRetreatQuicksandThreshold = 80
 object.nRetreatDigThreshold = 80
+
+object.nOldRetreatFactor = 0.9
+object.nMaxLevelDifference = 4
+object.nEnemyBaseThreat = 6
+
 --values used for correct placement and casting of skills
 object.vecStunTargetPos = nil
 object.nDigTime = 0
@@ -440,8 +445,8 @@ local function CustomHarassUtilityFnOverride(hero)
 		nUtilMul = 1
 	end
 	
-	if not unitSelf:GetHealthPercent > 70 then
-		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent / 100 ) + 0.3 )
+	if not (unitSelf:GetHealthPercent() > 70) then
+		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() / 100 ) + 0.3 )
 	end
 	
     return nUtil * nUtilMul
@@ -648,25 +653,26 @@ object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
 
-local function RetreatExecuteOverride(botBrain)
-	local bActionTaken = false
-	local unitSelf = core.unitSelf
-	local abilDig = skills.abilQ
-	local abilQuick = skills.abilW
-	if not bActionTaken then
-		local tThreats = core.localUnits["EnemyHeroes"]
-		if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
-			BotEcho("Casting Retreat Slow")
-			local vecMyPos = unitSelf:GetPosition()
-			local nRange = abilQuick:GetRange()
-			for key,hero in pairs(tThreats) do
-				local heroPos = hero:GetPosition()
-				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
-				if nTargetDistanceSq < (nRange*nRange) then
-					bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
-				end
-		   end
-		end
+--local function RetreatExecuteOverride(botBrain)
+--	local bActionTaken = false
+--	local unitSelf = core.unitSelf
+--	local abilDig = skills.abilQ
+--	local abilQuick = skills.abilW
+--		local tThreats = core.localUnits["EnemyHeroes"]
+--	if not bActionTaken then
+--		if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:
+--			CanActivate() then
+--			BotEcho("Casting Retreat Slow")
+--			local vecMyPos = unitSelf:GetPosition()
+--			local nRange = abilQuick:GetRange()
+--			for key,hero in pairs(tThreats) do
+--				local heroPos = hero:GetPosition()
+--				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+--				if nTargetDistanceSq < (nRange*nRange) then
+--					bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+--				end
+--		   end
+--		end
 	--	if behaviorLib.lastRetreatUtil >= object.nRetreatDigThreshold and abilDig:CanActivate() then
 	--		if HoN.GetGameTime()-object.nRetreatDigTime > 2000 then
 	--			BotEcho("Casting Retreat Dig")
@@ -678,13 +684,13 @@ local function RetreatExecuteOverride(botBrain)
 	--			object.nRetreatDigTime = HoN.GetGameTime()
 	--		end
 	--	end
-	end
-		if not bActionTaken then
-			return object.RetreatFromThreatExecuteOld(botBrain)
-		end
-end
-object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
-behaviorLib.RetreatFromThreatBehavior["Execute"] = RetreatExecuteOverride
+--	end
+--		if not bActionTaken then
+--			return object.RetreatFromThreatExecuteOld(botBrain)
+--		end
+--end
+--object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
+--behaviorLib.RetreatFromThreatBehavior["Execute"] = RetreatExecuteOverride
 
 local function ManaRingAlwaysUtility(botBrain) 
 	if(core.itemReplenish and core.itemReplenish:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-135))  then
@@ -702,6 +708,133 @@ behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
 behaviorLib.ManaRingAlwaysBehavior["Execute"] = ManaRingAlwaysExecute
 behaviorLib.ManaRingAlwaysBehavior["Name"] = "ManaRingAlways"
 tinsert(behaviorLib.tBehaviors, behaviorLib.ManaRingAlwaysBehavior)
+
+--------------------------------------------------
+-- RetreatFromThreat Override --
+--------------------------------------------------
+--pretty much copypasta from 
+--DarkFire
+--Kairus101
+--VHD
+--kudos to those geniuses
+
+--This function returns the position of the enemy hero.
+--If he is not shown on map it returns the last visible spot
+--as long as it is not older than 10s
+local function funcGetEnemyPosition(unitEnemy)
+	if unitEnemy == nil then return Vector3.Create(20000, 20000) end
+	local tEnemyPosition = core.unitSelf.tEnemyPosition
+	local tEnemyPositionTimestamp = core.unitSelf.tEnemyPositionTimestamp
+	if tEnemyPosition == nil then
+		-- initialize new table
+		core.unitSelf.tEnemyPosition = {}
+		core.unitSelf.tEnemyPositionTimestamp = {}
+		tEnemyPosition = core.unitSelf.tEnemyPosition
+		tEnemyPositionTimestamp = core.unitSelf.tEnemyPositionTimestamp
+		local tEnemyTeam = HoN.GetHeroes(core.enemyTeam)
+		--vector beyond map
+		for x, hero in pairs(tEnemyTeam) do
+			tEnemyPosition[hero:GetUniqueID()] = Vector3.Create(20000, 20000)
+			tEnemyPositionTimestamp[hero:GetUniqueID()] = HoN.GetGameTime()
+		end
+	end
+	local vecPosition = unitEnemy:GetPosition()
+	--enemy visible?
+	if vecPosition then
+		--update table
+		tEnemyPosition[unitEnemy:GetUniqueID()] = unitEnemy:GetPosition()
+		tEnemyPositionTimestamp[unitEnemy:GetUniqueID()] = HoN.GetGameTime()
+	end
+	--return position, 10s memory
+	if tEnemyPositionTimestamp[unitEnemy:GetUniqueID()] <= HoN.GetGameTime() + 10000 then
+		return tEnemyPosition[unitEnemy:GetUniqueID()]
+	else
+		return Vector3.Create(20000, 20000)
+	end
+end
+
+local function funcGetThreatOfEnemy(unitEnemy)
+	if unitEnemy == nil or not unitEnemy:IsAlive() then return 0 end
+	local unitSelf = core.unitSelf
+	local nDistanceSq = Vector3.Distance2DSq(unitSelf:GetPosition(), funcGetEnemyPosition (unitEnemy))
+	if nDistanceSq > 4000000 then return 0 end	
+	local nMyLevel = unitSelf:GetLevel()
+	local nEnemyLevel = unitEnemy:GetLevel()
+	--Level differences increase / decrease actual nThreat
+	local nThreat = object.nEnemyBaseThreat + Clamp(nEnemyLevel - nMyLevel, 0, object.nMaxLevelDifference)
+	nThreat = Clamp(3*(112810000-nDistanceSq) / (4*(19*nDistanceSq+32810000)),0.75,2) * nThreat
+	return nThreat
+end
+
+local function positionOffset(pos, angle, distance) --this is used by minions to form a ring around people.
+	tmp = Vector3.Create(cos(angle)*distance,sin(angle)*distance)
+	return tmp+pos
+end
+
+local function EscapeDig(botBrain)
+	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
+	local abilDig = skills.abilQ
+	local vecMyPos=core.unitSelf:GetPosition()
+	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
+		if (abilDig:CanActivate()) then
+			return core.OrderAbilityPosition(botBrain, abilDig, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), abilDig:GetRange()))
+		end
+	end
+	return false
+end
+
+local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
+	local bDebugEchos = false
+	local nUtilityOld = behaviorLib.lastRetreatUtil
+	local nUtility = object.RetreatFromThreatUtilityOld(botBrain) * object.nOldRetreatFactor
+
+	--decay with a maximum of 4 utilitypoints per frame to ensure a longer retreat time
+	if nUtilityOld > nUtility +4 then
+		nUtility = nUtilityOld -4
+	end
+	
+	--bonus of allies decrease fear
+	local allies = core.localUnits["AllyHeroes"]
+	local nAllies = core.NumberElements(allies) + 1
+	--get enemy heroes
+	local tEnemyTeam = HoN.GetHeroes(core.enemyTeam)
+	--calculate the threat-value and increase utility value
+	for id, enemy in pairs(tEnemyTeam) do
+		nUtility = nUtility + funcGetThreatOfEnemy(enemy) / nAllies
+	end
+	return Clamp(nUtility, 0, 100)
+end
+
+local function funcRetreatFromThreatExecuteOverride(botBrain)
+	local unitSelf = core.unitSelf
+	local unitTarget = behaviorLib.heroTarget
+	local vecPos = behaviorLib.PositionSelfBackUp()
+	local nlastRetreatUtil = behaviorLib.lastRetreatUtil
+	local nNow = HoN.GetGameTime()
+	local abilQuick = skills.abilW
+	local tThreats = core.localUnits["EnemyHeroes"]
+	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and EscapeDig(botBrain) then return true end
+	
+	if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
+		BotEcho("Casting Retreat Slow")
+		local vecMyPos = unitSelf:GetPosition()
+		local nRange = abilQuick:GetRange()
+		for key,hero in pairs(tThreats) do
+			local heroPos = hero:GetPosition()
+			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+			if nTargetDistanceSq < (nRange*nRange) then
+				bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+			end
+		  end
+	end
+	return core.OrderMoveToPosClamp(botBrain, core.unitSelf, vecPos, false)
+end
+
+object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
+behaviorLib.RetreatFromThreatBehavior["Utility"] = CustomRetreatFromThreatUtilityFnOverride
+object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
+behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
+
 BotEcho ('success')
 
 
