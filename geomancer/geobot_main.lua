@@ -157,7 +157,7 @@ object.nSheepstickUse = 17
 object.nDigThreshold = 51
 object.nSandThreshold = 35
 object.nGraspThreshold = 6
-object.nCrystalThreshold = 61
+object.nCrystalThreshold = 58
 object.nDigWithPortalkeyThreshold = 30
 object.nFrostfieldThreshold = 50
 object.nSheepstickThreshold = 40
@@ -627,14 +627,12 @@ local function HarassHeroExecuteOverride(botBrain)
 			if bTargetRooted then
 				if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
 					if nTargetDistanceSq < nRangeSq then
-						-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
 						 vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
 						bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 					end
 				end
 			elseif nLastHarassUtility > botBrain.nCrystalThreshold then
 				if nTargetDistanceSq < nRangeSq then
-					-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
 					vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
 					bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 				end
