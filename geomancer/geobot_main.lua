@@ -412,6 +412,9 @@ local function CustomHarassUtilityFnOverride(hero)
     end
 	
 	if skills.abilE:CanActivate() then
+		if skills.abilW:GetLevel() == 0 then
+			nUtil = nUtil + object.nSandUp - 10
+		end
 		nUtil = nUtil + object.nGraspUp
 		nTotalMana = nTotalMana + skills.abilE:GetManaCost()
 	end
@@ -553,44 +556,51 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilCrystal = skills.abilR
 		local itemSheepstick = core.itemSheepstick
 		
-		if not bActionTaken then
-			if itemSheepstick then
-				local nRange = itemSheepstick:GetRange()
-				if itemSheepstick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickThreshold and nTargetDistanceSq < (nRange*nRange) then
-					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
-				end
-			elseif abilDig:CanActivate() then
-				local nRange = abilDig:GetRange()
-				local nRangeSq = nRange*nRange
-				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
-					if nLastHarassUtility > botBrain.nDigThreshold then
-						if nTargetDistanceSq > object.nDigStunRadius and nTargetDistanceSq < nRangeSq then
-							 vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius):GetPosition()
-							 object.bRetreating = false
-							core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-							bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
-						end
-					end
-				end
-				if bTargetSlowed and not bTargetVuln then
-					if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
-						if nTargetDistanceSq < nRangeSq then
-							bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
-						end
-					end
-			 elseif nLastHarassUtility > botBrain.nDigThreshold then
-					if nTargetDistanceSq < nRangeSq then
-							bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
-						end
+		if not bActionTaken and itemSheepstick then
+			local nRange = itemSheepstick:GetRange()
+			if itemSheepstick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickThreshold and nTargetDistanceSq < (nRange*nRange) then
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
 			end
-			elseif abilSand:CanActivate() and not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
+		end
+		
+		if not bActionTaken and abilDig:CanActivate() then
+			local nRange = abilDig:GetRange()
+			local nRangeSq = nRange*nRange
+			
+			if nLastHarassUtility > botBrain.nDigThreshold then
+				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
+					nTooCloseRangeSq = ( object.nDigStunRadius + 150 ) * ( object.nDigStunRadius + 150 )
+					if nTargetDistanceSq > nTooCloseRangeSq and nTargetDistanceSq < nRangeSq then
+						vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius):GetPosition()
+						object.bRetreating = false
+						core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+						bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
+					end
+				elseif nTargetDistanceSq < nRangeSq then
+					bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+				end
+			elseif bTargetSlowed and not bTargetVuln then
+				if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
+					if nTargetDistanceSq < nRangeSq then
+						bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+					end
+				end
+			end
+		end
+		
+		if not bActionTaken and abilSand:CanActivate() then
+			if not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
 				local nRange = abilSand:GetRange()
 				
 				if nTargetDistanceSq < (nRange * nRange) then
 					BotEcho("Casting Sand")
 					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, PredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
 				end
-			elseif abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
+			end
+		end
+		
+		if not bActionTaken and abilGrasp:CanActivate() then
+			if nLastHarassUtility > botBrain.nGraspThreshold then
 				BotEcho("Grasping")
 				local nRange = abilGrasp:GetRange()
 				local nMinManaLeft = 0
@@ -605,26 +615,28 @@ local function HarassHeroExecuteOverride(botBrain)
 				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
 					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 				end
-			elseif abilCrystal:CanActivate() then
-				local nRange = abilCrystal:GetRange()
-				local nRangeSq = nRange*nRange
-				if core.itemFrostfield and core.itemFrostfield:CanActivate() then
-					core.OrderItemClamp(botBrain, unitSelf, core.itemFrostfield)
-				end
-				if bTargetRooted then
-					if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
-						if nTargetDistanceSq < nRangeSq then
-							-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
-							 vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
-							bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
-						end
-					end
-				elseif nLastHarassUtility > botBrain.nCrystalThreshold then
+			end
+		end
+		
+		if not bActionTaken and abilCrystal:CanActivate() then
+			local nRange = abilCrystal:GetRange()
+			local nRangeSq = nRange*nRange
+			if core.itemFrostfield and core.itemFrostfield:CanActivate() then
+				core.OrderItemClamp(botBrain, unitSelf, core.itemFrostfield)
+			end
+			if bTargetRooted then
+				if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
 					if nTargetDistanceSq < nRangeSq then
 						-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
-						vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
+						 vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
 						bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 					end
+				end
+			elseif nLastHarassUtility > botBrain.nCrystalThreshold then
+				if nTargetDistanceSq < nRangeSq then
+					-- vecCrystalTargetPos = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
+					vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 				end
 			end
 			object.bTargetVulnOld = bTargetVuln
