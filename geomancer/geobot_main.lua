@@ -167,7 +167,7 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 
 -- thresholds for retreating
-object.nRetreatQuicksandThreshold = 95s
+object.nRetreatQuicksandThreshold = 95
 object.nRetreatDigThreshold = 99
 
 object.nOldRetreatFactor = 0.9
@@ -182,6 +182,8 @@ object.nTimeNeededForDistance = 0
 object.nDigStunRadius = 250
 object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
+object.bRetreating = false
+object.bAttackStunActivate = false
 
 ------------ Function for finding the center of a group (used by ult and some other places). 
 ------------ Kudos to Stolen_id for this
@@ -307,7 +309,7 @@ function object:oncombateventOverride(EventData)
     local nAddBonus = 0
  
     if EventData.Type == "Ability" then
-        if EventData.InflictorName == "Ability_Geomancer1" then
+        if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating and not object.bAttackStunActivate then
             nAddBonus = nAddBonus + object.nDigUse
         elseif EventData.InflictorName == "Ability_Germancer2" then
             nAddBonus = nAddBonus + object.nSandUse
@@ -502,10 +504,13 @@ local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
 			BotEcho("Inside")
 			if object.bStunned == true then
 				BotEcho("Stunning")
+				object.bAttackStunActivate = false
 				bActionTaken = core.OrderAbility(botBrain, abilDig)
 				object.bStunned = false
 			else
 				BotEcho("Casting Stun")
+				object.bRetreating = false
+				object.bAttackStunActivate = true
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 				object.nDigTime = HoN.GetGameTime()
 				vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
@@ -565,6 +570,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					if nLastHarassUtility > botBrain.nDigThreshold then
 						if nTargetDistanceSq > object.nDigStunRadius and nTargetDistanceSq < nRangeSq then
 							 vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius):GetPosition()
+							 object.bRetreating = false
 							core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 							bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
 						end
@@ -764,6 +770,7 @@ local function EscapeDig(botBrain)
 	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
 		if (abilDig:CanActivate() and HoN.GetGameTime()-object.nRetreatDigTime > 2000) then
 			object.nRetreatDigTime = HoN.GetGameTime()
+			object.bRetreating = true
 			return core.OrderAbilityPosition(botBrain, abilDig, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), abilDig:GetRange()))
 		end
 	end
