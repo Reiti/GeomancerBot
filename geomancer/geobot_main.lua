@@ -504,7 +504,7 @@ local function funcAbilityPush(botBrain)
 	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nMinManaLeft then
 		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
 		if unitBestDigTarget ~= nil then
-			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
+			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestDigTarget:GetPosition() )
 			local nRange = abilDig:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
