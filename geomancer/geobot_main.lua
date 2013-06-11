@@ -216,7 +216,7 @@ local function funcBestTargetAOE(tEnemyHeroes, nRange)
         end
     end
  
-    return unitTarget
+    return unitBestTarget
 end
 
 
@@ -475,7 +475,9 @@ local function funcAbilityPush(botBrain)
 	local abilGrasp = skills.abilE
 	local abilSand = skills.abilW
 	local abilCrystal = skills.abilR
-				
+	
+	local vecMyPosition = unitSelf:GetPosition()
+
 	if not abilDig:GetLevel() == 0 then
 		nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
 	end
@@ -490,11 +492,24 @@ local function funcAbilityPush(botBrain)
 	end
 	
 	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft then
-		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
-		bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
-	elseif abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nMinManaLeft then
+		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nGraspRadius)
+		if unitBestGraspTarget ~= nil then
+			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
+			local nRange = abilGrasp:GetRange()
+			if nTargetDistanceSq < (nRange * nRange) then
+				bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitBestGraspTarget)
+			end
+		end
+	end
+	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nMinManaLeft then
 		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
-		bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+		if unitBestDigTarget ~= nil then
+			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
+			local nRange = abilDig:GetRange()
+			if nTargetDistanceSq < (nRange * nRange) then
+				bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+			end
+		end
 	end
 		
 	
