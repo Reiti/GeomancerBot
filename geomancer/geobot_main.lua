@@ -184,7 +184,7 @@ object.bRetreating = false
 
 
 
---copypasta from snippet compedium
+-- modified (generalized) copypasta from snippet compedium
 local function funcBestTargetAOE(tEnemyHeroes, nRange)
     local nHeroes = core.NumberElements(tEnemyHeroes)
     if nHeroes <= 1 then
@@ -218,6 +218,48 @@ local function funcBestTargetAOE(tEnemyHeroes, nRange)
  
     return unitBestTarget
 end
+
+
+-- method to predict movement of target unit
+local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius) 
+	if unitTarget.blsMemoryUnit then
+		if unitTarget.storedPosition and unitTarget.lastStoredPosition then
+			local vecLastDirection = Vector3.Normalize(unitTarget.storedPosition - unitTarget.lastStoredPosition)
+			 return vecTarget + vecLastDirection*radius
+		end
+	end
+	return vecTarget
+end
+
+
+-- function to control digging
+local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+	
+	local bActionTaken = false
+	
+	BotEcho(object.nTimeNeededForDistance)
+	BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
+	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
+		BotEcho("Inside")
+		if object.bStunned == true then
+			BotEcho("Stunning")
+			bActionTaken = core.OrderAbility(botBrain, abilDig)
+			object.bStunned = false
+		else
+			BotEcho("Casting Stun")
+			object.bRetreating = false
+			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+			object.nDigTime = HoN.GetGameTime()
+			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+			vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
+			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
+			object.bStunned = true
+		end
+	end
+	
+	return bActionTaken
+end
+
 
 
 --####################################################################
@@ -614,46 +656,7 @@ behaviorLib.bigPurseBehavior["Execute"] = behaviorLib.bigPurseExecute
 behaviorLib.bigPurseBehavior["Name"] = "bigPurse"
 tinsert(behaviorLib.tBehaviors, behaviorLib.bigPurseBehavior)
 
---------------------------------------------------------------
--- method to predict movement of target unit      -----
--- used for prediction in casting stun and slow ------
---------------------------------------------------------------
-local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius) 
-	if unitTarget.blsMemoryUnit then
-		if unitTarget.storedPosition and unitTarget.lastStoredPosition then
-			local vecLastDirection = Vector3.Normalize(unitTarget.storedPosition - unitTarget.lastStoredPosition)
-			 return vecTarget + vecLastDirection*radius
-		end
-	end
-	return vecTarget
-end
 
-local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
-	
-	local bActionTaken = false
-	
-	BotEcho(object.nTimeNeededForDistance)
-	BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
-	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
-		BotEcho("Inside")
-		if object.bStunned == true then
-			BotEcho("Stunning")
-			bActionTaken = core.OrderAbility(botBrain, abilDig)
-			object.bStunned = false
-		else
-			BotEcho("Casting Stun")
-			object.bRetreating = false
-			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-			object.nDigTime = HoN.GetGameTime()
-			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
-			vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
-			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
-			object.bStunned = true
-		end
-	end
-	
-	return bActionTaken
-end
 --------------------------------------------------------------
 --                    Harass Behavior                       --
 -- All code how to use abilities against enemies goes here  --
