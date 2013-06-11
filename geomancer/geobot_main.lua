@@ -118,7 +118,7 @@ object.heroName = 'Hero_Geomancer'
 
 --   item buy order. internal names  
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots", "Item_Replenish"}
+behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots", "Item_Replenish", "Item_PowerSupply"}
 behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
 behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
 
@@ -360,8 +360,16 @@ local function funcFindItemsOverride(botBrain)
 		core.itemReplenish = nil
 	end
 	
+	if core.itemManabattery ~= nil and not core.itemManabattery:IsValid() then
+		core.itemManabattery = nil
+	end
+	
+	if core.itemPowersupply ~= nil and not core.itemPowersupply:IsValid() then
+		core.itemPowersupply = nil
+	end
+	
 	if bUpdated then
-		if core.itemSheepstick then
+		if core.itemSheepstick and core.itemFrostfield and core.itemPortalkey and core.itemReplenish and core.itemManabattery and core.itemPowersupply then
 			return
 		end
 		local inventory = core.unitSelf:GetInventory(true)
@@ -380,6 +388,12 @@ local function funcFindItemsOverride(botBrain)
 				elseif core.itemReplenish == nil and curItem:GetName() == "Item_Replenish" then
 					core.VerboseLog("Replenish")
 					core.itemReplenish = core.WrapInTable(curItem)
+				elseif core.itemManabattery == nil and curItem:GetName() == "Item_ManaBattery" then
+					core.VerboseLog("ManaBattery")
+					core.itemManabattery = core.WrapInTable(curItem)
+				elseif core.itemPowersupply == nil and curItem:GetName() == "Item_PowerSupply" then
+					core.VerboseLog("PowerSupply")
+					core.itemPowersupply = core.WrapInTable(curItem)
 				end
 			end
 		end
@@ -464,23 +478,45 @@ behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride
 --  doesn't cancel it's own stun               --
 -------------------------------------------------------------
 
-local function DontBreakStunUtility(botBrain)
-	local utility = 0
-	if core.unitSelf:HasState("State_Geomancer_Ability1_Self") then
-		utility = 1
+local function ManaBatteryUseUtility(botBrain)
+	local unitSelf = core.unitSelf
+	local nManaPercent = unitSelf:GetManaPercent()
+	local nHealthPercent = unitSelf:GetHealthPercent()
+	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
+	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
+	local nCharges = 0
+	local bCritical = (nManaPercent < 20) or (nHealthPercent < 20)
+	local nUtility = 0
+	if core.itemManabattery and core.itemManabattery:CanActivate()  then
+		nCharges = core.itemManabattery:GetCharges()
 	end
-	return utility
+	if core.itemPowersupply and  core.itemPowersupply:CanActivate() then
+		nCharges = core.itemPowersupply:GetCharges()
+	end
+	if core.itemManabattery and core.itemManabattery:CanActivate() and bCritical and nCharges > 5 then
+		nUtility = 100
+	elseif  core.itemPowersupply and  core.itemPowersupply:CanActivate() and bCritical and nCharges > 5 then
+		nUtility = 100
+	elseif (core.itemPowersupply and core.itemManabattery) and  (core.itemManabattery:CanActivate() and  core.itemPowersupply:CanActivate())  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
+		nUtility = 100
+	end
+	BotEcho(nUtility)
+	return nUtility
 end
 
-local function DontBreakStunExecute(botBrain)
-	--Will probably add some targeting.
+local function ManaBatteryUseExecute(botBrain)
+	if core.itemPowersupply and core.itemPowersupply:CanActivate() then 
+		core.OrderItemClamp(botBrain, unitSelf, core.itemPowersupply, true)
+	elseif core.itemManabattery and core.itemManabattery:CanActivate() then
+		core.OrderItemClamp(botBrain, unitSelf, core.itemManabattery, true)
+	end
 end
 
-behaviorLib.DontBreakStunBehavior = {}
-behaviorLib.DontBreakStunBehavior["Utility"] = DontBreakStunUtility
-behaviorLib.DontBreakStunBehavior["Execute"] = DontBreakStunExecute
-behaviorLib.DontBreakStunBehavior["Name"] = "DontBreakStun"
-tinsert(behaviorLib.tBehaviors, behaviorLib.DontBreakStunBehavior)
+behaviorLib.ManaBatteryUseBehavior = {}
+behaviorLib.ManaBatteryUseBehavior["Utility"] = ManaBatteryUseUtility
+behaviorLib.ManaBatteryUseBehavior["Execute"] = ManaBatteryUseExecute
+behaviorLib.ManaBatteryUseBehavior["Name"] = "ManaBatteryUse"
+tinsert(behaviorLib.tBehaviors, behaviorLib.ManaBatteryUseBehavior)
 
 
 
