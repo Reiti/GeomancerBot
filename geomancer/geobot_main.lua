@@ -1,41 +1,41 @@
- -- _____            _           _   
+-- _____            _           _   
 -- |  __ \          | |         | |  
 -- | |  \/ ___  ___ | |__   ___ | |_ 
 -- | | __ / _ \/ _ \| '_ \ / _ \| __|
 -- | |_\ \  __/ (_) | |_) | (_) | |_ 
- -- \____/\___|\___/|_.__/ \___/ \__|
+-- \____/\___|\___/|_.__/ \___/ \__|
 
 -- GEOBOT v0.7
 -- This bot contains some basic geomancer logic and will be extended
 -- also he is awesome and epic
 --
 
---####################################################################
---####################################################################
---####################################################################
---####															  ####
---####							ToDo							  ####
---####															  ####
---####################################################################
---####################################################################
---####															  ####
+--############################################################################
+--############################################################################
+--############################################################################
+--####											  ####
+--####							ToDo				  ####
+--####											  ####
+--############################################################################
+--############################################################################
+--####											  ####
 --####		1. Add Stun Dynamics to cancel stun properly		  ####
---####		2. Add Stun Retreat logic							  ####
---####		2.5 Add Sand Retreat logic (Done!)					  ####
---####		3. Add PortalKey Retreat logic						  ####
---####		4. Add PortalKey Aggression logic					  ####
---#### 		5. Add FrostfieldPlate Aggression logic				  ####
---####		6. Add FrostfieldPlate Retreat logic				  ####
---####		7. Add Earths Grasp pushing logic					  ####
---####		8. Add Sheepstick Aggression Logic					  ####
---#### 		9. Add Sheepstick Retreat logic		ssssss			  ####
---####		10. Add Stun Prediction	(Done!)						  ####
+--####		2. Add Stun Retreat logic			(Done!)	  ####
+--####		2.5 Add Sand Retreat logic 			(Done!)	  ####
+--####		3. Add PortalKey Retreat logic		(Done!)	  ####
+--####		4. Add PortalKey Aggression logic		(Done!)	  ####
+--#### 		5. Add FrostfieldPlate Aggression logic	(Done!)	  ####
+--####		6. Add FrostfieldPlate Retreat logic	(Done!)	  ####
+--####		7. Add Earths Grasp pushing logic				  ####
+--####		8. Add Sheepstick Aggression Logic 		(Done!)	  ####
+--#### 		9. Add Sheepstick Retreat logic		(Done!)	  ####
+--####		10. Add Stun Prediction				(Done!)	  ####
 --####		11. Change Shopping Behaviour for Situational Items	  ####
---####		12. Implement ManaRing usage (Done!)				  ####
---####		13. Implement dyn-harass-util for self HP/Mana		  ####
+--####		12. Implement ManaRing usage 			(Done!)	  ####
+--####		13. Implement dyn-harass-util for self HP/Mana	(Done!) ####
 --####		14. Implement dyn-harass-util for enemy HP/Mana		  ####
---####															  ####
---####################################################################
+--####											  ####
+--############################################################################
 
 
 --####################################################################
@@ -162,6 +162,9 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 -- thresholds for retreating
 object.nRetreatQuicksandThreshold = 95
 object.nRetreatDigThreshold = 99
+object.nRetreatPortThreshold = 95
+object.nRetreatFrostfieldThreshold = 95
+object.nRetreatSheepThreshold = 95
 
 object.nOldRetreatFactor = 0.9
 object.nMaxLevelDifference = 4
@@ -173,32 +176,11 @@ object.nDigTime = 0
 object.bStunned = false
 object.nTimeNeededForDistance = 0
 object.nDigStunRadius = 250
+object.nDigStunRadiusSq = object.nDigStunRadius*object.nDigStunRadius
 object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
 
------------- Function for finding the center of a group (used by ult and some other places). 
------------- Kudos to Stolen_id for this
-local function GroupCenter(tGroup, nMinCount)
-    if nMinCount == nil then nMinCount = 1 end
-      
-    if tGroup ~= nil then
-        local vGroupCenter = Vector3.Create()
-        local nGroupCount = 0
-        for id, creep in pairs(tGroup) do
-            vGroupCenter = vGroupCenter + creep:GetPosition()
-            nGroupCount = nGroupCount + 1
-        end
-          
-        if nGroupCount < nMinCount then
-            return nil
-        else
-            return vGroupCenter/nGroupCount-- center vector
-        end
-    else
-        return nil  
-    end
-end 
 
 --copypasta from snippet compedium
 local function funcBestTargetAOE(tEnemyHeroes, unitTarget, nRange)
@@ -239,7 +221,7 @@ end
 --####################################################################
 --####################################################################
 --#                                                                 ##
---#   bot faggot overrides                                          ##
+--#   bot function overrides                                        ##
 --#                                                                 ##
 --####################################################################
 --####################################################################
@@ -455,8 +437,8 @@ local function CustomHarassUtilityFnOverride(hero)
 		nUtilMul = 1
 	end
 	
-	if not (unitSelf:GetHealthPercent() > 70) then
-		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() / 100 ) + 0.3 )
+	if not (unitSelf:GetHealthPercent() > 0.7) then
+		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() ) + 0.3 )
 	end
 	
     return nUtil * nUtilMul
@@ -478,7 +460,7 @@ local function ManaBatteryUseUtility(botBrain)
 	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
 	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
 	local nCharges = 0
-	local bCritical = (nManaPercent < 20) or (nHealthPercent < 20)
+	local bCritical = (nManaPercent < 0.2) or (nHealthPercent < 0.2)
 	local nUtility = 0
 	if core.itemManabattery and core.itemManabattery:CanActivate()  then
 		nCharges = core.itemManabattery:GetCharges()
@@ -486,7 +468,7 @@ local function ManaBatteryUseUtility(botBrain)
 	if core.itemPowersupply and  core.itemPowersupply:CanActivate() then
 		nCharges = core.itemPowersupply:GetCharges()
 	end
-	if core.itemManabattery and core.itemManabattery:CanActivate() and bCritical and nCharges > 5 then
+	if core.itemManabattery and core.itemManabattery:CanActivate() and bCritical and nCharges > 3 then
 		nUtility = 100
 	elseif  core.itemPowersupply and  core.itemPowersupply:CanActivate() and bCritical and nCharges > 5 then
 		nUtility = 100
@@ -528,9 +510,10 @@ local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius)
 end
 
 local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+		
 		BotEcho(object.nTimeNeededForDistance)
 		BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
-		if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance then
+		if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
 			BotEcho("Inside")
 			if object.bStunned == true then
 				BotEcho("Stunning")
@@ -813,6 +796,19 @@ local function EscapeDig(botBrain)
 	return false
 end
 
+
+local function EscapePortal(botBrain)
+	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
+	local vecMyPos=core.unitSelf:GetPosition()
+	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
+		if (core.itemPortalkey and core.itemPortalkey:CanActivate() then
+			object.bRetreating = true
+			return core.OrderItemPosition(botBrain, core.itemPortalkey, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
+		end
+	end
+	return false
+end
+
 local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
 	local bDebugEchos = false
 	local nUtilityOld = behaviorLib.lastRetreatUtil
@@ -844,8 +840,19 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local abilQuick = skills.abilW
 	local tThreats = core.localUnits["EnemyHeroes"]
 	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and EscapeDig(botBrain) then return true end
-	
-	if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
+	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and EscapePortal(botBrain) then return true end
+	if behaviorLib.lastRetreatUtil> object.nRetreatFrostfieldThreshold and core.itemFrostfield and core.itemFrostfield:CanActivate() then
+		local nFrostTriggerRadiusSq = 400*400
+		for key,hero in pairs(tThreats) do
+			local heroPos  = hero:GetPosition()
+			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+			if nTargetDistanceSq < nFrostTriggerRadiusSq then
+				core.OrdeItem(botBrain, core.itemFrostfield)
+				return true
+			end
+		end
+	end
+	if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
 		BotEcho("Casting Retreat Slow")
 		local vecMyPos = unitSelf:GetPosition()
 		local nRange = abilQuick:GetRange()
@@ -853,9 +860,21 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 			local heroPos = hero:GetPosition()
 			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
 			if nTargetDistanceSq < (nRange*nRange) then
-				bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+				core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+				return true
 			end
 		  end
+	end
+	if behaviorLib.lastRetreatUtil> object.nRetreatSheepThreshold and core.itemSheepstick and core.itemSheepsstick:CanActivate() then
+		local nRangeSq = core.itemSheepstick:GetRange()
+		for key, hero in pairs(tThreats) do
+			local heroPos = hero:GetPosition()
+			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+			if nTargetDistanceSq < nRangeSq then
+				core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, hero)
+				return true
+			end
+		end
 	end
 	return core.OrderMoveToPosClamp(botBrain, core.unitSelf, vecPos, false)
 end
