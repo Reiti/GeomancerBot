@@ -905,7 +905,7 @@ local function EscapePortal(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local vecMyPos=core.unitSelf:GetPosition()
 	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
-		if (core.itemPortalkey and core.itemPortalkey:CanActivate() then
+		if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 			object.bRetreating = true
 			return core.OrderItemPosition(botBrain, core.itemPortalkey, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
 		end
