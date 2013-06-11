@@ -306,7 +306,6 @@ function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
  
     local nAddBonus = 0
-	BotEcho(format("Retreat: %s", tostring(object.bRetreating)))
     if EventData.Type == "Ability" then
         if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating then
             nAddBonus = nAddBonus + object.nDigUse
@@ -592,6 +591,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, PredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
 				end
 			elseif abilGrasp:CanActivate() and nLastHarassUtility > botBrain.nGraspThreshold then
+				BotEcho("Grasping")
 				local nRange = abilGrasp:GetRange()
 				local nMinManaLeft = 0
 				
