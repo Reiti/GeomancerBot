@@ -161,7 +161,7 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 -- thresholds for retreating
 object.nRetreatQuicksandThreshold = 95
-object.nRetreatDigThreshold = 99
+object.nRetreatDigThreshold = 97
 object.nRetreatPortThreshold = 95
 object.nRetreatFrostfieldThreshold = 95
 object.nRetreatSheepThreshold = 95
@@ -183,11 +183,12 @@ object.nRetreatDigTime = 0
 object.bRetreating = false
 
 
+
 --copypasta from snippet compedium
-local function funcBestTargetAOE(tEnemyHeroes, unitTarget, nRange)
+local function funcBestTargetAOE(tEnemyHeroes, nRange)
     local nHeroes = core.NumberElements(tEnemyHeroes)
     if nHeroes <= 1 then
-        return unitTarget
+        return tEnemyHeroes[0]
     end
  
     local tTemp = core.CopyTable(tEnemyHeroes)
@@ -462,23 +463,6 @@ behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride
 -- @return: none
 --
 
-local function PushExecuteOverride(botBrain)
-	if not funcAbilityPush(botBrain) then 
-		return object.PushExecuteOld(botBrain)
-	end
-end
-object.PushExecuteOld = behaviorLib.PushBehavior["Execute"]
-behaviorLib.PushBehavior["Execute"] = PushExecuteOverride
-
-
-local function TeamGroupBehaviorOverride(botBrain)
-	if not funcAbilityPush(botBrain) then 
-		return object.TeamGroupBehaviorOld(botBrain)
-	end
-end
-object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
-behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
-
 
 local function funcAbilityPush(botBrain)
 	local bActionTaken = false
@@ -486,6 +470,7 @@ local function funcAbilityPush(botBrain)
 	local unitBestDigTarget = nil
 	local nMinManaLeft = 0
 	
+	local unitSelf = core.unitSelf
 	local abilDig = skills.abilQ
 	local abilGrasp = skills.abilE
 	local abilSand = skills.abilW
@@ -505,16 +490,36 @@ local function funcAbilityPush(botBrain)
 	end
 	
 	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft then
-		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius)
+		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
 		bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
-	elseif abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:getManaCost() ) > nMinManaLeft then
-		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius)
+	elseif abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nMinManaLeft then
+		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
 		bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
 	end
 		
 	
 	return bActionTaken
 end
+
+
+local function PushExecuteOverride(botBrain)
+	if not funcAbilityPush(botBrain) then 
+		return object.PushExecuteOld(botBrain)
+	end
+end
+object.PushExecuteOld = behaviorLib.PushBehavior["Execute"]
+behaviorLib.PushBehavior["Execute"] = PushExecuteOverride
+
+
+local function TeamGroupBehaviorOverride(botBrain)
+	if not funcAbilityPush(botBrain) then 
+		return object.TeamGroupBehaviorOld(botBrain)
+	end
+end
+object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
+behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
+
+
 
 --------------------------------------------------------------
 --					   ManaBatteryBehaviour		   			--
@@ -543,7 +548,7 @@ local function ManaBatteryUseUtility(botBrain)
 	elseif (core.itemPowersupply and core.itemManabattery) and  (core.itemManabattery:CanActivate() and  core.itemPowersupply:CanActivate())  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
 		nUtility = 100
 	end
-	BotEcho(nUtility)
+	--BotEcho(nUtility)
 	return nUtility
 end
 
@@ -686,7 +691,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 					nTooCloseRangeSq = ( object.nDigStunRadius + 150 ) * ( object.nDigStunRadius + 150 )
 					if nTargetDistanceSq > nTooCloseRangeSq and nTargetDistanceSq < nRangeSq then
-						vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius):GetPosition()
+						vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], object.nDigStunRadius):GetPosition()
 						object.bRetreating = false
 						core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 						bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
