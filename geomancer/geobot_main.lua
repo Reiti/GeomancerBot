@@ -177,6 +177,7 @@ object.bStunned = false
 object.nTimeNeededForDistance = 0
 object.nDigStunRadius = 250
 object.nDigStunRadiusSq = object.nDigStunRadius*object.nDigStunRadius
+object.nGraspRadius = 180
 object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
@@ -226,6 +227,8 @@ end
 --####################################################################
 --####################################################################
 
+
+
 ------------------------------
 --     skills               --
 ------------------------------
@@ -254,6 +257,9 @@ function object:SkillBuild()
         unitSelf:GetAbility( object.tSkills[i] ):LevelUp()
     end
 end
+
+
+
 
 ------------------------------------------------------
 --            onthink override                      --
@@ -447,11 +453,73 @@ end
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
 
--------------------------------------------------------------
---					   Stunning Behavior		   --
---  A behavior that makes sure the bot
---  doesn't cancel it's own stun               --
--------------------------------------------------------------
+
+--------------------------------------------------------------
+--                    Push Overrides                        --
+-- A behaviour to use abilities to push						--
+--------------------------------------------------------------
+-- @param botBrain: CBotBrain
+-- @return: none
+--
+
+local function PushExecuteOverride(botBrain)
+	if not funcAbilityPush(botBrain) then 
+		return object.PushExecuteOld(botBrain)
+	end
+end
+object.PushExecuteOld = behaviorLib.PushBehavior["Execute"]
+behaviorLib.PushBehavior["Execute"] = PushExecuteOverride
+
+
+local function TeamGroupBehaviorOverride(botBrain)
+	if not funcAbilityPush(botBrain) then 
+		return object.TeamGroupBehaviorOld(botBrain)
+	end
+end
+object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
+behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
+
+
+local function funcAbilityPush(botBrain)
+	local bActionTaken = false
+	local unitBestGraspTarget = nil
+	local unitBestDigTarget = nil
+	local nMinManaLeft = 0
+	
+	local abilDig = skills.abilQ
+	local abilGrasp = skills.abilE
+	local abilSand = skills.abilW
+	local abilCrystal = skills.abilR
+				
+	if not abilDig:GetLevel() == 0 then
+		nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
+	end
+	if abilDig:CanActivate() then
+		nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
+	end
+	if abilSand:CanActivate() then
+		nMinManaLeft = nMinManaLeft + abilSand:GetManaCost()
+	end
+	if abilCrystal:CanActivate() then
+		nMinManaLeft = nMinManaLeft + abilCrystal:GetManaCost()
+	end
+	
+	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft then
+		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius)
+		bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
+	elseif abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:getManaCost() ) > nMinManaLeft then
+		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyHeroes"], unitTarget, object.nDigStunRadius)
+		bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+	end
+		
+	
+	return bActionTaken
+end
+
+--------------------------------------------------------------
+--					   ManaBatteryBehaviour		   			--
+--  A behaviour to use the heal/mana items             		--
+--------------------------------------------------------------
 
 local function ManaBatteryUseUtility(botBrain)
 	local unitSelf = core.unitSelf
@@ -510,26 +578,30 @@ local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius)
 end
 
 local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
-		
-		BotEcho(object.nTimeNeededForDistance)
-		BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
-		if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
-			BotEcho("Inside")
-			if object.bStunned == true then
-				BotEcho("Stunning")
-				bActionTaken = core.OrderAbility(botBrain, abilDig)
-				object.bStunned = false
-			else
-				BotEcho("Casting Stun")
-				object.bRetreating = false
-				bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
-				object.nDigTime = HoN.GetGameTime()
-				vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
-				vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
-				object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
-				object.bStunned = true
-			end
+	
+	local bActionTaken = false
+	
+	BotEcho(object.nTimeNeededForDistance)
+	BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
+	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
+		BotEcho("Inside")
+		if object.bStunned == true then
+			BotEcho("Stunning")
+			bActionTaken = core.OrderAbility(botBrain, abilDig)
+			object.bStunned = false
+		else
+			BotEcho("Casting Stun")
+			object.bRetreating = false
+			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+			object.nDigTime = HoN.GetGameTime()
+			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+			vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
+			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
+			object.bStunned = true
 		end
+	end
+	
+	return bActionTaken
 end
 --------------------------------------------------------------
 --                    Harass Behavior                       --
@@ -613,7 +685,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		
 		if not bActionTaken and abilGrasp:CanActivate() then
 			if nLastHarassUtility > botBrain.nGraspThreshold then
-				BotEcho("Grasping")
+				
 				local nRange = abilGrasp:GetRange()
 				local nMinManaLeft = 0
 				
@@ -625,6 +697,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 				
 				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
+					BotEcho("Grasping")
 					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 				end
 			end
