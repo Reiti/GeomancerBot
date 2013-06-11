@@ -493,7 +493,38 @@ behaviorLib.ManaBatteryUseBehavior["Execute"] = ManaBatteryUseExecute
 behaviorLib.ManaBatteryUseBehavior["Name"] = "ManaBatteryUse"
 tinsert(behaviorLib.tBehaviors, behaviorLib.ManaBatteryUseBehavior)
 
-
+---------------------------------------------------------------------------
+--   return to fountain if g > *
+--   kudos to naib
+---------------------------------------------------------------------------
+-- Util
+object.purseMax = 6000
+object.purseMin = 3000
+function behaviorLib.bigPurseUtility(botBrain)
+    local bDebugEchos = false
+     
+    local Clamp = core.Clamp
+    local m = (100/(object.purseMax - object.purseMin))
+    nUtil = m*botBrain:GetGold() - m*object.purseMin
+    nUtil = Clamp(nUtil,0,100)
+ 
+    if bDebugEchos then BotEcho(format("Bot return Priority: [%s%s]",string.rep('#',nUtil/10),string.rep('_',10 -nUtil/10))) end
+ 
+    return nUtil
+end
+ 
+-- Execute
+function behaviorLib.bigPurseExecute(botBrain)
+    local unitSelf = core.unitSelf
+ 
+    local wellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
+    core.OrderMoveToPosAndHoldClamp(botBrain, unitSelf, wellPos, false)
+end  
+behaviorLib.bigPurseBehavior = {}
+behaviorLib.bigPurseBehavior["Utility"] = behaviorLib.bigPurseUtility
+behaviorLib.bigPurseBehavior["Execute"] = behaviorLib.bigPurseExecute
+behaviorLib.bigPurseBehavior["Name"] = "bigPurse"
+tinsert(behaviorLib.tBehaviors, behaviorLib.bigPurseBehavior)
 
 --------------------------------------------------------------
 -- method to predict movement of target unit      -----
