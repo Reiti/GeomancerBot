@@ -573,12 +573,12 @@ local function HarassHeroExecuteOverride(botBrain)
 				if bTargetSlowed and not bTargetVuln then
 					if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
 						if nTargetDistanceSq < nRangeSq then
-							castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+							bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
 						end
 					end
 			 elseif nLastHarassUtility > botBrain.nDigThreshold then
 					if nTargetDistanceSq < nRangeSq then
-							castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+							bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
 						end
 			end
 			elseif abilSand:CanActivate() and not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
