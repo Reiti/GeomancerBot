@@ -709,7 +709,11 @@ local function HarassHeroExecuteOverride(botBrain)
 				if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 					nTooCloseRangeSq = ( object.nDigStunRadius + 150 ) * ( object.nDigStunRadius + 150 )
 					if nTargetDistanceSq > nTooCloseRangeSq and nTargetDistanceSq < nRangeSq then
-						vecPortalkeyTargetPosition = funcBestTargetAOE(core.localUnits["EnemyHeroes"], object.nDigStunRadius):GetPosition()
+						unitBestTarget = funcBestTargetAOE(core.localUnits["EnemyHeroes"], object.nDigStunRadius)
+						if unitBestTarget == nil then
+							unitBestTarget = unitTarget
+						end
+						vecPortalkeyTargetPosition = unitBestTarget:GetPosition()
 						object.bRetreating = false
 						core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 						bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
