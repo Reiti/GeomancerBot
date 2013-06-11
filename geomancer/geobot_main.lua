@@ -183,7 +183,6 @@ object.nDigStunRadius = 250
 object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
-object.bAttackStunActivate = false
 
 ------------ Function for finding the center of a group (used by ult and some other places). 
 ------------ Kudos to Stolen_id for this
@@ -307,9 +306,9 @@ function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
  
     local nAddBonus = 0
- 
+	BotEcho(format("Retreat: %s", tostring(object.bRetreating)))
     if EventData.Type == "Ability" then
-        if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating and not object.bAttackStunActivate then
+        if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating then
             nAddBonus = nAddBonus + object.nDigUse
         elseif EventData.InflictorName == "Ability_Germancer2" then
             nAddBonus = nAddBonus + object.nSandUse
@@ -504,13 +503,11 @@ local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
 			BotEcho("Inside")
 			if object.bStunned == true then
 				BotEcho("Stunning")
-				object.bAttackStunActivate = false
 				bActionTaken = core.OrderAbility(botBrain, abilDig)
 				object.bStunned = false
 			else
 				BotEcho("Casting Stun")
 				object.bRetreating = false
-				object.bAttackStunActivate = true
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 				object.nDigTime = HoN.GetGameTime()
 				vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
