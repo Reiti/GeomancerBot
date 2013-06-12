@@ -156,7 +156,7 @@ object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
 
-
+behaviorLib.diveThreshold = 90
 
 -- modified (generalized) copypasta from snippet compedium
 local function funcBestTargetAOE(tEnemyHeroes, nRange)
