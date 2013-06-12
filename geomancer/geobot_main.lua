@@ -296,7 +296,12 @@ object.onthink 	= object.onthinkOverride
 -- @return: none
 function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
- 
+	
+	if bRetreating == true then
+		bRetreating = false
+		return
+	end
+	
     local nAddBonus = 0
     if EventData.Type == "Ability" then
         if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating then
@@ -860,7 +865,7 @@ local function funcEscapePortal(botBrain)
 	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
 		if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 			object.bRetreating = true
-			return core.OrderItemPosition(botBrain, core.itemPortalkey, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
+			return core.OrderItemPosition(botBrain, core.unitSelf, core.itemPortalkey, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
 		end
 	end
 	return false
@@ -889,45 +894,52 @@ end
 
 local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local unitSelf = core.unitSelf
+	local vecMyPos = unitSelf:GetPosition()
 	local unitTarget = behaviorLib.heroTarget
 	local vecPos = behaviorLib.PositionSelfBackUp()
 	local nlastRetreatUtil = behaviorLib.lastRetreatUtil
 	local nNow = HoN.GetGameTime()
 	local abilQuick = skills.abilW
-	local tThreats = core.localUnits["EnemyHeroes"]
+	
 	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and funcEscapeDig(botBrain) then return true end
 	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and funcEscapePortal(botBrain) then return true end
-	if behaviorLib.lastRetreatUtil> object.nRetreatFrostfieldThreshold and core.itemFrostfield and core.itemFrostfield:CanActivate() then
-		local nFrostTriggerRadiusSq = 400*400
-		for key,hero in pairs(tThreats) do
-			local heroPos  = hero:GetPosition()
-			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
-			if nTargetDistanceSq < nFrostTriggerRadiusSq then
-				core.OrdeItem(botBrain, core.itemFrostfield)
-				return true
+	
+	local tThreats = core.localUnits["EnemyHeroes"]
+	if tThreats ~= nil then
+		if behaviorLib.lastRetreatUtil> object.nRetreatFrostfieldThreshold and core.itemFrostfield and core.itemFrostfield:CanActivate() then
+			local nFrostTriggerRadiusSq = 400*400
+			for key,hero in pairs(tThreats) do
+				local heroPos  = hero:GetPosition()
+				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+				if nTargetDistanceSq < nFrostTriggerRadiusSq then
+					bRetreating = true
+					core.OrderItemClamp(botBrain, unitSelf, core.itemFrostfield)
+					return true
+				end
 			end
 		end
-	end
-	if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
-		local vecMyPos = unitSelf:GetPosition()
-		local nRange = abilQuick:GetRange()
-		for key,hero in pairs(tThreats) do
-			local heroPos = hero:GetPosition()
-			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
-			if nTargetDistanceSq < (nRange*nRange) then
-				core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
-				return true
-			end
-		  end
-	end
-	if behaviorLib.lastRetreatUtil> object.nRetreatSheepThreshold and core.itemSheepstick and core.itemSheepsstick:CanActivate() then
-		local nRangeSq = core.itemSheepstick:GetRange()
-		for key, hero in pairs(tThreats) do
-			local heroPos = hero:GetPosition()
-			local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
-			if nTargetDistanceSq < nRangeSq then
-				core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, hero)
-				return true
+		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
+			local nRange = abilQuick:GetRange()
+			for key,hero in pairs(tThreats) do
+				local heroPos = hero:GetPosition()
+				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+				if nTargetDistanceSq < (nRange*nRange) then
+				bRetreating = true
+					core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+					return true
+				end
+			  end
+		end
+		if behaviorLib.lastRetreatUtil> object.nRetreatSheepThreshold and core.itemSheepstick and core.itemSheepstick:CanActivate() then
+			local nRangeSq = core.itemSheepstick:GetRange()
+			for key, hero in pairs(tThreats) do
+				local heroPos = hero:GetPosition()
+				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
+				if nTargetDistanceSq < nRangeSq then
+					bRetreating = true
+					core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, hero)
+					return true
+				end
 			end
 		end
 	end
