@@ -458,7 +458,7 @@ local function CustomHarassUtilityFnOverride(hero)
 		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() ) + 0.3 )
 	end
 	
-    return nUtil * nUtilMul
+    return Clamp(nUtil * nUtilMul, 0, 100)
 end
 -- assign custom harass function to the behaviourLib object
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
@@ -821,6 +821,7 @@ local function funcGetEnemyPosition(unitEnemy)
 	end
 end
 
+--returns the thread coming from an enemy
 local function funcGetThreatOfEnemy(unitEnemy)
 	if unitEnemy == nil or not unitEnemy:IsAlive() then return 0 end
 	local unitSelf = core.unitSelf
@@ -839,6 +840,7 @@ local function funcPositionOffset(pos, angle, distance)
 	return tmp+pos
 end
 
+--cast dig in direction of well
 local function funcEscapeDig(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local abilDig = skills.abilQ
@@ -853,7 +855,7 @@ local function funcEscapeDig(botBrain)
 	return false
 end
 
-
+--port in direction of well
 local function funcEscapePortal(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local vecMyPos=core.unitSelf:GetPosition()
@@ -866,6 +868,7 @@ local function funcEscapePortal(botBrain)
 	return false
 end
 
+--override RetreatFromThreatUtility
 local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
 	local nUtilityOld = behaviorLib.lastRetreatUtil
 	local nUtility = object.RetreatFromThreatUtilityOld(botBrain) * object.nOldRetreatFactor
@@ -887,6 +890,7 @@ local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
 	return Clamp(nUtility, 0, 100)
 end
 
+--override RetreatFromThreatExecute
 local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local unitSelf = core.unitSelf
 	local unitTarget = behaviorLib.heroTarget

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bot
-	name="geobot"
-	description="A geomancer Bot"
+	name="Geobot"
+	description="A geomancer bot by NotReiti and Giymo11"
 	heroname="Hero_Geomancer"
 	rootlua="geobot_main.lua"
 	defaultplayername="Geobot"
