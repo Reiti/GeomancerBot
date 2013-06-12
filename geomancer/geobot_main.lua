@@ -85,7 +85,7 @@ object.heroName = 'Hero_Geomancer'
 
 --   item buy order. internal names  
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots","Item_MysticVestments", "Item_Replenish", "Item_PowerSupply"}
+behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_PowerSupply","Item_Steamboots","Item_MysticVestments", "Item_Replenish"}
 behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
 behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
 
@@ -954,5 +954,92 @@ object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
 behaviorLib.RetreatFromThreatBehavior["Utility"] = CustomRetreatFromThreatUtilityFnOverride
 object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
 behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
+
+------------------------------------------------
+--				Chat Overrides                --
+------------------------------------------------
+object.killMessages = {}
+object.killMessages.General = {
+    "I need your love, I need your time!",
+    "Make my Millenium",
+    "You didn't see that one coming, did you?",
+    "Feels good",
+    "Tired already?",
+    "No diggedy, no doubt."
+    }
+  
+local function ProcessKillChatOverride(unitTarget, sTargetPlayerName)
+    local nCurrentTime = HoN.GetGameTime()
+    if nCurrentTime < core.nNextChatEventTime then
+        return
+    end  
+      
+    local nToSpamOrNotToSpam = random(0,100)/100
+    BotEcho(core.nKillChatChance)
+    if(nToSpamOrNotToSpam < core.nKillChatChance) then
+        local nDelay = random(core.nChatDelayMin, core.nChatDelayMax)
+        local nMessage = random(#object.killMessages.General)
+        core.AllChat(format(object.killMessages.General[nMessage], sTargetPlayerName), nDelay)
+    end
+      
+    core.nNextChatEventTime = nCurrentTime + core.nChatEventInterval
+end
+core.ProcessKillChat = ProcessKillChatOverride 
+
+object.respawnMessages = {}
+object.respawnMessages.General = {
+    "Here I go again!",
+    "Selfdestruct aborted.",
+    "Keep calm and continue playing!",
+    "When life gives you lemons, make life take the lemons back",
+    "Aaah, the feeling of solid ground under my feet...",
+    "Why did i turn into a bug? D:"
+    }
+  
+local function ProcessRespawnChatOverride(unitTarget, sTargetPlayerName)
+    local nCurrentTime = HoN.GetGameTime()
+    if nCurrentTime < core.nNextChatEventTime then
+        return
+    end  
+      
+    local nToSpamOrNotToSpam = random(0,100)/100
+    BotEcho(core.nRespawnChatChance)
+    if(nToSpamOrNotToSpam < core.nRespawnChatChance) then
+        local nDelay = random(core.nChatDelayMin, core.nChatDelayMax)
+        local nMessage = random(#object.respawnMessages.General)
+        core.AllChat(format(object.respawnMessages.General[nMessage], sTargetPlayerName), nDelay)
+    end
+      
+    core.nNextChatEventTime = nCurrentTime + core.nChatEventInterval
+end
+core.ProcessRespawnChat = ProcessRespawnChatOverride 
+
+object.deathMessages = {}
+object.deathMessages.General = {
+    "Oh.. I think my dev missed a semicolon there.",
+    "Happens.",
+    "I kinda.. stumbled over my own feet.",
+    "Still better than Kurkuma",
+    "Oh sh** my cat is on fire",
+    "Oh.. how very kafkaesque"
+    }
+  
+local function ProcessDeathChatOverride(unitTarget, sTargetPlayerName)
+    local nCurrentTime = HoN.GetGameTime()
+    if nCurrentTime < core.nNextChatEventTime then
+        return
+    end  
+      
+    local nToSpamOrNotToSpam = random(0,100)/100
+    BotEcho(core.nDeathChatChance)
+    if(nToSpamOrNotToSpam < core.nDeathChatChance) then
+        local nDelay = random(core.nChatDelayMin, core.nChatDelayMax)
+        local nMessage = random(#object.deathMessages.General)
+        core.AllChat(format(object.deathMessages.General[nMessage], sTargetPlayerName), nDelay)
+    end
+      
+    core.nNextChatEventTime = nCurrentTime + core.nChatEventInterval
+end
+core.ProcessDeathChat = ProcessDeathChatOverride 
 
 BotEcho ('success')
