@@ -134,11 +134,11 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 
 -- thresholds for retreating
-object.nRetreatQuicksandThreshold = 95
-object.nRetreatDigThreshold = 97
+object.nRetreatQuicksandThreshold = 93
+object.nRetreatDigThreshold = 94
 object.nRetreatPortThreshold = 95
-object.nRetreatFrostfieldThreshold = 95
-object.nRetreatSheepThreshold = 95
+object.nRetreatFrostfieldThreshold = 92
+object.nRetreatSheepThreshold = 93
 
 object.nOldRetreatFactor = 0.9
 object.nMaxLevelDifference = 4
@@ -156,7 +156,7 @@ object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
 
-behaviorLib.diveThreshold = 90
+behaviorLib.diveThreshold = 96
 
 -- modified (generalized) copypasta from snippet compedium
 local function funcBestTargetAOE(tEnemyHeroes, nRange)
