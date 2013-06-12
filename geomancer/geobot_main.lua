@@ -8,34 +8,8 @@
 -- GEOBOT v0.7
 -- This bot contains some basic geomancer logic and will be extended
 -- also he is awesome and epic
---
+-- by [IxM]NotReiti and [IxM]Giymo11
 
---############################################################################
---############################################################################
---############################################################################
---####											  ####
---####							ToDo				  ####
---####											  ####
---############################################################################
---############################################################################
---####											  ####
---####		1. Add Stun Dynamics to cancel stun properly		  ####
---####		2. Add Stun Retreat logic			(Done!)	  ####
---####		2.5 Add Sand Retreat logic 			(Done!)	  ####
---####		3. Add PortalKey Retreat logic		(Done!)	  ####
---####		4. Add PortalKey Aggression logic		(Done!)	  ####
---#### 		5. Add FrostfieldPlate Aggression logic	(Done!)	  ####
---####		6. Add FrostfieldPlate Retreat logic	(Done!)	  ####
---####		7. Add Earths Grasp pushing logic				  ####
---####		8. Add Sheepstick Aggression Logic 		(Done!)	  ####
---#### 		9. Add Sheepstick Retreat logic		(Done!)	  ####
---####		10. Add Stun Prediction				(Done!)	  ####
---####		11. Change Shopping Behaviour for Situational Items	  ####
---####		12. Implement ManaRing usage 			(Done!)	  ####
---####		13. Implement dyn-harass-util for self HP/Mana	(Done!) ####
---####		14. Implement dyn-harass-util for enemy HP/Mana		  ####
---####											  ####
---############################################################################
 
 
 --####################################################################
@@ -111,7 +85,7 @@ object.heroName = 'Hero_Geomancer'
 
 --   item buy order. internal names  
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots", "Item_Replenish", "Item_PowerSupply"}
+behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_Steamboots","Item_MysticVestments", "Item_Replenish", "Item_PowerSupply"}
 behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
 behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
 
@@ -221,7 +195,7 @@ end
 
 
 -- method to predict movement of target unit
-local function PredictNextPosition(botBrain, unitTarget, vecTarget, radius) 
+local function funcPredictNextPosition(botBrain, unitTarget, vecTarget, radius) 
 	if unitTarget.blsMemoryUnit then
 		if unitTarget.storedPosition and unitTarget.lastStoredPosition then
 			local vecLastDirection = Vector3.Normalize(unitTarget.storedPosition - unitTarget.lastStoredPosition)
@@ -233,25 +207,19 @@ end
 
 
 -- function to control digging
-local function castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
-	
+local function funcCastDig(botBrain, vecTargetPosition, unitTarget)
 	local bActionTaken = false
-	
-	BotEcho(object.nTimeNeededForDistance)
-	BotEcho(format("Tiem since cast: %d", HoN.GetGameTime()-object.nDigTime))
+	local abilDig = skills.abilQ
 	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
-		BotEcho("Inside")
 		if object.bStunned == true then
-			BotEcho("Stunning")
 			bActionTaken = core.OrderAbility(botBrain, abilDig)
 			object.bStunned = false
 		else
-			BotEcho("Casting Stun")
 			object.bRetreating = false
 			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
 			object.nDigTime = HoN.GetGameTime()
 			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
-			vecStunTargetPos = PredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
+			vecStunTargetPos = funcPredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
 			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
 			object.bStunned = true
 		end
@@ -549,7 +517,7 @@ local function funcAbilityPush(botBrain)
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestDigTarget:GetPosition() )
 			local nRange = abilDig:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
-				bActionTaken = castDig(botBrain, abilDig, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+				bActionTaken = funcCastDig(botBrain, unitBestDigTarget:GetPosition(), unitBestDigTarget)
 			end
 		end
 	end
@@ -592,20 +560,23 @@ local function ManaBatteryUseUtility(botBrain)
 	local nCharges = 0
 	local bCritical = (nManaPercent < 0.2) or (nHealthPercent < 0.2)
 	local nUtility = 0
-	if core.itemManabattery and core.itemManabattery:CanActivate()  then
+	local bManaBattery = core.itemManabattery and core.itemManabattery:CanActivate()
+	local bPowerSupply = core.itemPowersupply and  core.itemPowersupply:CanActivate()
+
+
+	if bManaBattery  then
 		nCharges = core.itemManabattery:GetCharges()
 	end
-	if core.itemPowersupply and  core.itemPowersupply:CanActivate() then
+	if bPowerSupply then
 		nCharges = core.itemPowersupply:GetCharges()
 	end
-	if core.itemManabattery and core.itemManabattery:CanActivate() and bCritical and nCharges > 3 then
+	if bManaBattery and bCritical and nCharges > 3 then
 		nUtility = 100
-	elseif  core.itemPowersupply and  core.itemPowersupply:CanActivate() and bCritical and nCharges > 5 then
+	elseif bPowerSupply and bCritical and nCharges > 5 then
 		nUtility = 100
-	elseif (core.itemPowersupply and core.itemManabattery) and  (core.itemManabattery:CanActivate() and  core.itemPowersupply:CanActivate())  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
+	elseif (bPowerSupply and bManaBattery)  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
 		nUtility = 100
 	end
-	--BotEcho(nUtility)
 	return nUtility
 end
 
@@ -631,14 +602,11 @@ tinsert(behaviorLib.tBehaviors, behaviorLib.ManaBatteryUseBehavior)
 object.purseMax = 6000
 object.purseMin = 3000
 function behaviorLib.bigPurseUtility(botBrain)
-    local bDebugEchos = false
-     
     local Clamp = core.Clamp
     local m = (100/(object.purseMax - object.purseMin))
     nUtil = m*botBrain:GetGold() - m*object.purseMin
     nUtil = Clamp(nUtil,0,100)
  
-    if bDebugEchos then BotEcho(format("Bot return Priority: [%s%s]",string.rep('#',nUtil/10),string.rep('_',10 -nUtil/10))) end
  
     return nUtil
 end
@@ -719,12 +687,12 @@ local function HarassHeroExecuteOverride(botBrain)
 						bActionTaken = core.OrderItemPosition(botBrain, unitSelf, core.itemPortalkey, vecPortalkeyTargetPosition)
 					end
 				elseif nTargetDistanceSq < nRangeSq then
-					bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+					bActionTaken = funcCastDig(botBrain, vecTargetPosition, unitTarget)
 				end
 			elseif bTargetSlowed and not bTargetVuln then
 				if (nLastHarassUtility + object.nSlowedAggressionBonus) > botBrain.nDigThreshold then 
 					if nTargetDistanceSq < nRangeSq then
-						bActionTaken = castDig(botBrain, abilDig, vecTargetPosition, unitTarget)
+						bActionTaken = funcCastDig(botBrain,vecTargetPosition, unitTarget)
 					end
 				end
 			end
@@ -735,8 +703,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				local nRange = abilSand:GetRange()
 				
 				if nTargetDistanceSq < (nRange * nRange) then
-					BotEcho("Casting Sand")
-					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, PredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
+					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, funcPredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
 				end
 			end
 		end
@@ -755,7 +722,6 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 				
 				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
-					BotEcho("Grasping")
 					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 				end
 			end
@@ -794,46 +760,6 @@ end
 -- overload the behaviour stock function with custom 
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
-
-
---local function RetreatExecuteOverride(botBrain)
---	local bActionTaken = false
---	local unitSelf = core.unitSelf
---	local abilDig = skills.abilQ
---	local abilQuick = skills.abilW
---		local tThreats = core.localUnits["EnemyHeroes"]
---	if not bActionTaken then
---		if behaviorLib.lastRetreatUtil >= object.nRetreatQuicksandThreshold  and abilQuick:
---			CanActivate() then
---			BotEcho("Casting Retreat Slow")
---			local vecMyPos = unitSelf:GetPosition()
---			local nRange = abilQuick:GetRange()
---			for key,hero in pairs(tThreats) do
---				local heroPos = hero:GetPosition()
---				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
---				if nTargetDistanceSq < (nRange*nRange) then
---					bActionTaken = core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
---				end
---		   end
---		end
-	--	if behaviorLib.lastRetreatUtil >= object.nRetreatDigThreshold and abilDig:CanActivate() then
-	--		if HoN.GetGameTime()-object.nRetreatDigTime > 2000 then
-	--			BotEcho("Casting Retreat Dig")
-	--			local vecMyPos = unitSelf:GetPosition()
-	--			local wellPos = core.allyWell and core.allyWell:GetPosition() 
-	--			local targetPos = vecMyPos + Vector3.Create(wellPos.x/abs(wellPos.x), wellPos.y/abs(wellPos.y), wellPos.z)
-	--			BotEcho(format("My Pos: %d-%d | Taret Pos: %d-%d", vecMyPos.x, vecMyPos.y, targetPos.x, targetPos.y))
-	--			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, targetPos)
-	--			object.nRetreatDigTime = HoN.GetGameTime()
-	--		end
-	--	end
---	end
---		if not bActionTaken then
---			return object.RetreatFromThreatExecuteOld(botBrain)
---		end
---end
---object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
---behaviorLib.RetreatFromThreatBehavior["Execute"] = RetreatExecuteOverride
 
 local function ManaRingAlwaysUtility(botBrain) 
 	if(core.itemReplenish and core.itemReplenish:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-135))  then
@@ -908,12 +834,12 @@ local function funcGetThreatOfEnemy(unitEnemy)
 	return nThreat
 end
 
-local function positionOffset(pos, angle, distance) --this is used by minions to form a ring around people.
+local function funcPositionOffset(pos, angle, distance) 
 	tmp = Vector3.Create(cos(angle)*distance,sin(angle)*distance)
 	return tmp+pos
 end
 
-local function EscapeDig(botBrain)
+local function funcEscapeDig(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local abilDig = skills.abilQ
 	local vecMyPos=core.unitSelf:GetPosition()
@@ -921,27 +847,26 @@ local function EscapeDig(botBrain)
 		if (abilDig:CanActivate() and HoN.GetGameTime()-object.nRetreatDigTime > 2000) then
 			object.nRetreatDigTime = HoN.GetGameTime()
 			object.bRetreating = true
-			return core.OrderAbilityPosition(botBrain, abilDig, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), abilDig:GetRange()))
+			return core.OrderAbilityPosition(botBrain, abilDig, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), abilDig:GetRange()))
 		end
 	end
 	return false
 end
 
 
-local function EscapePortal(botBrain)
+local function funcEscapePortal(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local vecMyPos=core.unitSelf:GetPosition()
 	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
 		if core.itemPortalkey and core.itemPortalkey:CanActivate() then
 			object.bRetreating = true
-			return core.OrderItemPosition(botBrain, core.itemPortalkey, positionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
+			return core.OrderItemPosition(botBrain, core.itemPortalkey, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
 		end
 	end
 	return false
 end
 
 local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
-	local bDebugEchos = false
 	local nUtilityOld = behaviorLib.lastRetreatUtil
 	local nUtility = object.RetreatFromThreatUtilityOld(botBrain) * object.nOldRetreatFactor
 
@@ -970,8 +895,8 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local nNow = HoN.GetGameTime()
 	local abilQuick = skills.abilW
 	local tThreats = core.localUnits["EnemyHeroes"]
-	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and EscapeDig(botBrain) then return true end
-	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and EscapePortal(botBrain) then return true end
+	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and funcEscapeDig(botBrain) then return true end
+	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and funcEscapePortal(botBrain) then return true end
 	if behaviorLib.lastRetreatUtil> object.nRetreatFrostfieldThreshold and core.itemFrostfield and core.itemFrostfield:CanActivate() then
 		local nFrostTriggerRadiusSq = 400*400
 		for key,hero in pairs(tThreats) do
@@ -984,7 +909,6 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 		end
 	end
 	if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
-		BotEcho("Casting Retreat Slow")
 		local vecMyPos = unitSelf:GetPosition()
 		local nRange = abilQuick:GetRange()
 		for key,hero in pairs(tThreats) do
