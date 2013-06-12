@@ -209,7 +209,7 @@ end
 -- function to control digging
 local function funcCastDig(botBrain, vecTargetPosition, unitTarget)
 	local bActionTaken = false
-	local abilDig = skills.abilQ
+	local abilDig = skills.abilDig
 	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
 		if object.bStunned == true then
 			bActionTaken = core.OrderAbility(botBrain, abilDig)
@@ -248,13 +248,13 @@ end
 function object:SkillBuild()
     core.VerboseLog("skillbuild()")
 
--- takes care at load/reload, <name_#> to be replaced by some convenient name.
     local unitSelf = self.core.unitSelf
-    if  skills.abilQ == nil then
-        skills.abilQ = unitSelf:GetAbility(0)
-        skills.abilW = unitSelf:GetAbility(1)
-        skills.abilE = unitSelf:GetAbility(2)
-        skills.abilR = unitSelf:GetAbility(3)
+    if  skills.abilDig == nil then
+        skills.abilDig = unitSelf:GetAbility(0)
+        skills.abilSand = unitSelf:GetAbility(1)
+        skills.abilGrasp = unitSelf:GetAbility(2)
+        skills.abilCrystal = unitSelf:GetAbility(3)
+    else
         skills.abilAttributeBoost = unitSelf:GetAbility(4)
     end
     if unitSelf:GetAbilityPointsAvailable() <= 0 then
@@ -412,27 +412,27 @@ local function CustomHarassUtilityFnOverride(hero)
     local nUtil = 0
 	local nTotalMana = 0
      
-    if skills.abilQ:CanActivate() then
+    if skills.abilDig:CanActivate() then
         nUtil = nUtil + object.nDigUp
-		nTotalMana = skills.abilQ:GetManaCost()
+		nTotalMana = skills.abilDig:GetManaCost()
     end
  
-    if skills.abilW:CanActivate() then
+    if skills.abilSand:CanActivate() then
         nUtil = nUtil + object.nSandUp
-		nTotalMana = nTotalMana + skills.abilW:GetManaCost()
+		nTotalMana = nTotalMana + skills.abilSand:GetManaCost()
     end
 	
-	if skills.abilE:CanActivate() then
-		if skills.abilW:GetLevel() == 0 then
+	if skills.abilGrasp:CanActivate() then
+		if skills.abilSand:GetLevel() == 0 then
 			nUtil = nUtil + object.nSandUp - 10
 		end
 		nUtil = nUtil + object.nGraspUp
-		nTotalMana = nTotalMana + skills.abilE:GetManaCost()
+		nTotalMana = nTotalMana + skills.abilGrasp:GetManaCost()
 	end
 	
-    if skills.abilR:CanActivate() then
+    if skills.abilCrystal:CanActivate() then
         nUtil = nUtil + object.nCrystalUp
-		nTotalMana = nTotalMana + skills.abilR:GetManaCost()
+		nTotalMana = nTotalMana + skills.abilCrystal:GetManaCost()
     end
  
     if object.itemSheepstick and object.itemSheepstick:CanActivate() then
@@ -462,8 +462,8 @@ local function CustomHarassUtilityFnOverride(hero)
 	if not (unitSelf:GetHealthPercent() > 0.7) then
 		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() ) + 0.3 )
 	end
-	
-    return Clamp(nUtil * nUtilMul, 0, 100)
+	nUtil = Clamp(nUtil, 0, 100)
+    return nUtil*nUtilMul
 end
 -- assign custom harass function to the behaviourLib object
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
@@ -486,10 +486,10 @@ local function funcAbilityPush(botBrain)
 	local nMinManaLeft = 0
 	
 	local unitSelf = core.unitSelf
-	local abilDig = skills.abilQ
-	local abilGrasp = skills.abilE
-	local abilSand = skills.abilW
-	local abilCrystal = skills.abilR
+	local abilDig = skills.abilDig
+	local abilGrasp = skills.abilGrasp
+	local abilSand = skills.abilSand
+	local abilCrystal = skills.abilCrystal
 	
 	local vecMyPosition = unitSelf:GetPosition()
 
@@ -661,10 +661,10 @@ local function HarassHeroExecuteOverride(botBrain)
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
 		local bTargetSlowed = unitTarget:GetMoveSpeed() < 200
 		local bTargetRooted = bTargetVuln or bTargetSlowed
-		local abilDig = skills.abilQ
-		local abilGrasp = skills.abilE
-		local abilSand = skills.abilW
-		local abilCrystal = skills.abilR
+		local abilDig = skills.abilDig
+		local abilGrasp = skills.abilGrasp
+		local abilSand = skills.abilSand
+		local abilCrystal = skills.abilCrystal
 		local itemSheepstick = core.itemSheepstick
 		
 		if not bActionTaken and itemSheepstick then
@@ -754,9 +754,6 @@ local function HarassHeroExecuteOverride(botBrain)
 			object.bTargetVulnOld = bTargetVuln
 		end
 	end
-    --- Insert abilities code here, set bActionTaken to true 
-    --- if an ability command has been given successfully
-    
     
     if not bActionTaken then
         return object.harassExecuteOld(botBrain)
@@ -848,7 +845,7 @@ end
 --cast dig in direction of well
 local function funcEscapeDig(botBrain)
 	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
-	local abilDig = skills.abilQ
+	local abilDig = skills.abilDig
 	local vecMyPos=core.unitSelf:GetPosition()
 	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
 		if (abilDig:CanActivate() and HoN.GetGameTime()-object.nRetreatDigTime > 2000) then
@@ -903,7 +900,7 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local vecPos = behaviorLib.PositionSelfBackUp()
 	local nlastRetreatUtil = behaviorLib.lastRetreatUtil
 	local nNow = HoN.GetGameTime()
-	local abilQuick = skills.abilW
+	local abilDiguick = skills.abilSand
 	
 	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and funcEscapeDig(botBrain) then return true end
 	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and funcEscapePortal(botBrain) then return true end
@@ -922,14 +919,14 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 				end
 			end
 		end
-		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilQuick:CanActivate() then
-			local nRange = abilQuick:GetRange()
+		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilDiguick:CanActivate() then
+			local nRange = abilDiguick:GetRange()
 			for key,hero in pairs(tThreats) do
 				local heroPos = hero:GetPosition()
 				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
 				if nTargetDistanceSq < (nRange*nRange) then
 				bRetreating = true
-					core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
+					core.OrderAbilityPosition(botBrain, abilDiguick, heroPos)
 					return true
 				end
 			  end
