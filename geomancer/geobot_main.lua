@@ -5,7 +5,7 @@
 -- | |_\ \  __/ (_) | |_) | (_) | |_ 
 -- \____/\___|\___/|_.__/ \___/ \__|
 
--- GEOBOT v0.7
+-- GEOBOT v0.8
 -- This bot contains some basic geomancer logic and will be extended
 -- also he is awesome and epic
 -- by [IxM]NotReiti and [IxM]Giymo11
@@ -25,29 +25,29 @@ local object = _G.object
 
 object.myName = object:GetName()
 
-object.bRunLogic         = true
+object.bRunLogic        = true
 object.bRunBehaviors    = true
 object.bUpdates         = true
 object.bUseShop         = true
 
 object.bRunCommands     = true 
-object.bMoveCommands     = true
-object.bAttackCommands     = true
+object.bMoveCommands    = true
+object.bAttackCommands  = true
 object.bAbilityCommands = true
-object.bOtherCommands     = true
+object.bOtherCommands   = true
 
-object.bReportBehavior = false
-object.bDebugUtility = false
+object.bReportBehavior 	= false
+object.bDebugUtility 	= false
 
-object.logger = {}
+object.logger 			= {}
 object.logger.bWriteLog = false
 object.logger.bVerboseLog = false
 
-object.core         = {}
-object.eventsLib     = {}
-object.metadata     = {}
-object.behaviorLib     = {}
-object.skills         = {}
+object.core             = {}
+object.eventsLib        = {}
+object.metadata         = {}
+object.behaviorLib      = {}
+object.skills           = {}
 
 runfile "bots/core.lua"
 runfile "bots/botbraincore.lua"
@@ -68,29 +68,28 @@ local Clamp = core.Clamp
 
 BotEcho(object:GetName()..' loading geobot_main...')
 
-
-
-
---####################################################################
---####################################################################
---#                                                                 ##
---#                  bot constant definitions                       ##
---#                                                                 ##
---####################################################################
---####################################################################
+-- Choosing lanes
+core.tLanePreferences = {Jungle = 0, Mid = 4, ShortSolo = 5, LongSolo = 3, ShortSupport = 3, LongSupport = 1, ShortCarry = 2, LongCarry = 2}
 
 -- hero_<hero>  to reference the internal hon name of a hero, Hero_Yogi ==wildsoul
 object.heroName = 'Hero_Geomancer'
 
+-- item names so I don't have to remember
+local sSheepstick    = "Item_Morph"
+local sFrostfield    = "Item_FrostfieldPlate"
+local sPortalkey     = "Item_PortalKey"
+local sRingOfSorcery = "Item_Replenish"
+local sManaBattery   = "Item_ManaBattery"
+local sPowerSupply   = "Item_PowerSupply"
+local sSteamboots    = "Item_Steamboots"
 
---   item buy order. internal names  
-behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "Item_MinorTotem", "Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems  = {"Item_ManaBattery", "Item_PowerSupply","Item_Steamboots","Item_MysticVestments", "Item_Replenish"}
-behaviorLib.MidItems  = {"Item_PortalKey", "Item_FrostfieldPlate"}
-behaviorLib.LateItems  = {"Item_Morph", "Item_GrimoireOfPower"}
+-- item buy order. internal names  
+behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "2 Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
+behaviorLib.LaneItems      = {sManaBattery, sPowerSupply, sSteamboots,"Item_MysticVestments", sRingOfSorcery}
+behaviorLib.MidItems       = {sPortalkey, sFrostfield}
+behaviorLib.LateItems      = {sSheepstick, "Item_GrimoireOfPower"}
 
-
--- skillbuild table, 0=q, 1=w, 2=e, 3=r, 4=attri
+-- Skillbuild table, 0 = Dig, 1 = Grasp, 2 = Quicksand, 3 = Crystal Field, 4 = Attributes
 object.tSkills = {
     0, 2, 2, 1, 2,
     3, 2, 0, 0, 0, 
@@ -99,39 +98,69 @@ object.tSkills = {
     4, 4, 4, 4, 4,
 }
 
+-- initialize skills
+function object:SkillBuild()
+
+    core.VerboseLog("skillbuild()")
+
+    local unitSelf = self.core.unitSelf
+    
+    if  skills.abilDig == nil then -- skills are not initialized
+        skills.abilDig = unitSelf:GetAbility(0)
+        skills.abilSand = unitSelf:GetAbility(1)
+        skills.abilGrasp = unitSelf:GetAbility(2)
+        skills.abilCrystal = unitSelf:GetAbility(3)
+    else
+        skills.abilAttributeBoost = unitSelf:GetAbility(4)
+    end
+
+    local nPoints = unitSelf:GetAbilityPointsAvailable()
+    if nPoints <= 0 then
+        return
+    end
+    
+    local nMyLevel = unitSelf:GetLevel()
+    for i = nMyLevel, (nMyLevel + nPoints) do
+        unitSelf:GetAbility( object.tSkills[i] ):LevelUp()
+    end
+end
+
+-- melee weight overrides
 behaviorLib.nCreepPushbackMul = 0.6 --default: 1
 behaviorLib.nTargetPositioningMul = 0.7 --default: 1
 
--- bonus aggression points if a skill/item is available for use
+-- bonus aggression points if a skill is available for use
 object.nDigUp = 27
 object.nSandUp = 23
 object.nGraspUp = 5
 object.nCrystalUp = 10
+-- items
 object.nPortalkeyUp = 15
 object.nFrostfieldUp = 8
 object.nSheepstickUp = 7
 
--- bonus aggression points that are applied to the bot upon successfully using a skill/item
+-- bonus aggression points that are applied to the bot upon successfully using a skill
 object.nDigUse = 47
 object.nSandUse = 38
 object.nGraspUse = 0
 object.nCrystalUse = 30
+-- items
 object.nPortalkeyUse = 0
 object.nFrostfieldUse = 18
 object.nSheepstickUse = 17
+
+-- bonu aggression points for enemy status effects
+object.nSlowedAggressionBonus = 10  -- only applicable for dig
+object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 --thresholds of aggression the bot must reach to use these abilities
 object.nDigThreshold = 51
 object.nSandThreshold = 35
 object.nGraspThreshold = 6
 object.nCrystalThreshold = 58
-object.nDigWithPortalkeyThreshold = 30
+object.nDigWithPortalkeyThreshold = 30 -- when you have dig and portalkey up
 object.nFrostfieldThreshold = 50
 object.nSheepstickThreshold = 40
-
-object.nSlowedAggressionBonus = 10  -- only applicable for dig
-object.nRootedAggressionBonus = 15  -- only applicable for crystal
-
 
 -- thresholds for retreating
 object.nRetreatQuicksandThreshold = 93
@@ -156,6 +185,7 @@ object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
 
+-- diving Threshold
 behaviorLib.diveThreshold = 96
 
 -- modified (generalized) copypasta from snippet compedium
@@ -228,72 +258,64 @@ local function funcCastDig(botBrain, vecTargetPosition, unitTarget)
 	return bActionTaken
 end
 
-
-
---####################################################################
---####################################################################
---#                                                                 ##
---#   bot function overrides                                        ##
---#                                                                 ##
---####################################################################
---####################################################################
-
-
-
-------------------------------
---     skills               --
-------------------------------
--- @param: none
--- @return: none
-function object:SkillBuild()
-    core.VerboseLog("skillbuild()")
-
-    local unitSelf = self.core.unitSelf
-    if  skills.abilDig == nil then
-        skills.abilDig = unitSelf:GetAbility(0)
-        skills.abilSand = unitSelf:GetAbility(1)
-        skills.abilGrasp = unitSelf:GetAbility(2)
-        skills.abilCrystal = unitSelf:GetAbility(3)
-    else
-        skills.abilAttributeBoost = unitSelf:GetAbility(4)
-    end
-    if unitSelf:GetAbilityPointsAvailable() <= 0 then
-        return
-    end
-    
-   
-    local nlev = unitSelf:GetLevel()
-    local nlevpts = unitSelf:GetAbilityPointsAvailable()
-    for i = nlev, nlev+nlevpts do
-        unitSelf:GetAbility( object.tSkills[i] ):LevelUp()
-    end
-end
-
-
-
-
-------------------------------------------------------
---            onthink override                      --
--- Called every bot tick, custom onthink code here  --
-------------------------------------------------------
--- @param: tGameVariables
--- @return: none
+-- onthink Override
 function object:onthinkOverride(tGameVariables)
     self:onthinkOld(tGameVariables)
-    -- custom code here
+    
+    local itemSteamboots = core.GetItem(sSteamboots)
+    if itemSteamboots and itemSteamboots:CanActivate() then
+	    -- Toggle Steamboots for more Health/Mana
+		local unitSelf = core.unitSelf
+		local sKey = itemSteamboots:GetActiveModifierKey()
+
+		if sKey == "str" then -- Toggle away from STR if health is high enough
+			if unitSelf:GetHealthPercent() > .65 then
+				self:OrderItem(itemSteamboots.object, false)
+			end
+		elseif sKey == "agi" then -- Always toggle past AGI
+			self:OrderItem(itemSteamboots.object, false)
+		elseif sKey == "int" then -- Toggle away from INT if health gets too low
+			if unitSelf:GetHealthPercent() < .40 then
+				self:OrderItem(itemSteamboots.object, false)
+			end
+		end
+    end
 end
+
 object.onthinkOld = object.onthink
 object.onthink 	= object.onthinkOverride
 
 
-
-
 ----------------------------------------------
---            oncombatevent override        --
 -- use to check for infilictors (fe. buffs) --
 ----------------------------------------------
--- @param: eventdata
--- @return: none
+
+local function onAbilityEvent( sInflictorName )
+	if sInflictorName == "Ability_Geomancer1" and not object.bRetreating then
+        return object.nDigUse
+    elseif sInflictorName == "Ability_Germancer2" then
+        return object.nSandUse
+	elseif sInflictorName == "Ability_Germancer3" then
+        return object.nGraspUse
+    elseif sInflictorName == "Ability_Geomancer4" then
+        return object.nCrystalUse
+    end
+end
+
+local function onItemEvent( sInflictorName )
+	local itemSheepStick = core.GetItem(sSheepstick)
+	local itemFrostfield = core.GetItem(sFrostfield)
+	local itemPortalkey  = core.GetItem(sPortalkey)
+
+	if itemSheepstick ~= nil and sInflictorName == itemSheepstick:GetName() then
+        return self.nSheepstickUse
+    elseif itemFrostfield ~= nil and sInflictorName == itemFrostfield:GetName() then
+        return self.nFrostfieldUse
+    elseif itemPortalkey ~= nil and sInflictorName == itemPortalkey:GetName() then
+        return self.nPortalkeyUse
+    end
+end
+
 function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
 	
@@ -303,24 +325,13 @@ function object:oncombateventOverride(EventData)
 	end
 	
     local nAddBonus = 0
+
     if EventData.Type == "Ability" then
-        if EventData.InflictorName == "Ability_Geomancer1" and not object.bRetreating then
-            nAddBonus = nAddBonus + object.nDigUse
-        elseif EventData.InflictorName == "Ability_Germancer2" then
-            nAddBonus = nAddBonus + object.nSandUse
-		elseif EventData.InflictorName == "Ability_Germancer3" then
-            nAddBonus = nAddBonus + object.nGraspUse
-        elseif EventData.InflictorName == "Ability_Geomancer4" then
-            nAddBonus = nAddBonus + object.nCrystalUse
-        end
+    	nAddBonus = onAbilityEvent(EventData.InflictorName)
     elseif EventData.Type == "Item" then
-        if core.itemSheepstick ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemSheepstick:GetName() then
-            nAddBonus = nAddBonus + self.nSheepstickUse
-        elseif core.itemFrostfield ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemFrostfield:GetName() then
-            nAddBonus = nAddBonus + self.nFrostfieldUse
-        elseif core.itemPortalkey ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemPortalkey:GetName() then
-            nAddBonus = nAddBonus + self.nPortalkeyUse
-        end
+        if EventData.SourceUnit == core.unitSelf:GetUniqueID() then
+        	nAddBonus = onItemEvent(EventData.InflictorName)
+    	end
     end
  
    if nAddBonus > 0 then
@@ -328,13 +339,14 @@ function object:oncombateventOverride(EventData)
         core.nHarassBonus = core.nHarassBonus + nAddBonus
     end
 end
+
 -- override combat event trigger function.
 object.oncombateventOld = object.oncombatevent
 object.oncombatevent     = object.oncombateventOverride
 
 
 
-
+--[[
 ------------------------------------------------------
 -- FindItems Override
 ------------------------------------------------------
@@ -399,7 +411,7 @@ end
 object.FindItemsOld = core.FindItems
 core.FindItems = funcFindItemsOverride
 
-
+]]
 
 
 ------------------------------------------------------
@@ -960,7 +972,7 @@ object.killMessages.General = {
     "I need your love, I need your time!",
     "Make my Millenium",
     "You didn't see that one coming, did you?",
-    "Feels good",
+    "Feels good.",
     "Tired already?",
     "No diggedy, no doubt."
     }
@@ -1016,9 +1028,9 @@ object.deathMessages.General = {
     "Oh.. I think my dev missed a semicolon there.",
     "Happens.",
     "I kinda.. stumbled over my own feet.",
-    "Still better than Kurkuma",
-    "Oh sh** my cat is on fire",
-    "Oh.. how very kafkaesque"
+    "Still better than Kurkuma.",
+    "Oh sh** my cat is on fire!",
+    "Oh.. how very kafkaesque.."
     }
   
 local function ProcessDeathChatOverride(unitTarget, sTargetPlayerName)
