@@ -83,6 +83,20 @@ local sManaBattery   = "Item_ManaBattery"
 local sPowerSupply   = "Item_PowerSupply"
 local sSteamboots    = "Item_Steamboots"
 
+-- Mana Costs of abilities
+local nDigCost 	 = 120
+local nSandCost  = 80
+local nGraspCost = 100
+local function getCrystalCost( nLevel )
+	if nLevel == 1 then
+		return 200
+	elseif nLevel == 2 then
+		return 250
+	elseif nLevel == 3 then
+		return 300
+	end
+end
+
 -- item buy order. internal names  
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "2 Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
 behaviorLib.LaneItems      = {sManaBattery, sPowerSupply, sSteamboots,"Item_MysticVestments", sRingOfSorcery}
@@ -126,13 +140,13 @@ function object:SkillBuild()
 end
 
 -- melee weight overrides
-behaviorLib.nCreepPushbackMul = 0.6 --default: 1
-behaviorLib.nTargetPositioningMul = 0.7 --default: 1
+--behaviorLib.nCreepPushbackMul = 0.6 --default: 1
+--behaviorLib.nTargetPositioningMul = 0.7 --default: 1
 
 -- bonus aggression points if a skill is available for use
 object.nDigUp = 27
 object.nSandUp = 23
-object.nGraspUp = 5
+object.nGraspUp = 50
 object.nCrystalUp = 10
 -- items
 object.nPortalkeyUp = 15
@@ -280,6 +294,7 @@ function object:onthinkOverride(tGameVariables)
 			end
 		end
     end
+    -- TODO: end your dig when the destinatino is reached / you get your target(s)
 end
 
 object.onthinkOld = object.onthink
@@ -293,9 +308,9 @@ object.onthink 	= object.onthinkOverride
 local function onAbilityEvent( sInflictorName )
 	if sInflictorName == "Ability_Geomancer1" and not object.bRetreating then
         return object.nDigUse
-    elseif sInflictorName == "Ability_Germancer2" then
+    elseif sInflictorName == "Ability_Geomancer2" then
         return object.nSandUse
-	elseif sInflictorName == "Ability_Germancer3" then
+	elseif sInflictorName == "Ability_Geomancer3" then
         return object.nGraspUse
     elseif sInflictorName == "Ability_Geomancer4" then
         return object.nCrystalUse
@@ -319,6 +334,7 @@ end
 function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
 	
+	-- add check if it's a retreat behaviour 
 	if bRetreating == true then
 		bRetreating = false
 		return
@@ -342,7 +358,7 @@ end
 
 -- override combat event trigger function.
 object.oncombateventOld = object.oncombatevent
-object.oncombatevent     = object.oncombateventOverride
+object.oncombatevent    = object.oncombateventOverride
 
 
 
@@ -413,68 +429,93 @@ core.FindItems = funcFindItemsOverride
 
 ]]
 
+local function getTotalAggressiveManaCost()
+	local nTotalMana = 0
+
+	if skills.abilDig:CanActivate() then
+		nTotalMana = skills.abilDig:GetManaCost()
+	end
+	if skills.abilGrasp:CanActivate() then
+		nTotalMana = nTotalMana + skills.abilGrasp:GetManaCost()
+	end
+	if skills.abilSand:CanActivate() then
+		nTotalMana = nTotalMana + skills.abilSand:GetManaCost()
+	end
+	if skills.abilCrystal:CanActivate() then
+		nTotalMana = nTotalMana + skills.abilCrystal:GetManaCost()
+	end
+
+	local itemSheepStick = core.GetItem(sSheepstick)
+	local itemFrostfield = core.GetItem(sFrostfield)
+	local itemPortalkey  = core.GetItem(sPortalkey)
+
+	if itemSheepstick ~= nil and itemSheepstick:CanActivate() then
+		nTotalMana = nTotalMana + itemSheepstick:GetManaCost()
+	end
+	if itemFrostfield ~= nil and itemFrostfield:CanActivate() then
+		nTotalMana = nTotalMana + itemFrostfield:GetManaCost()
+	end
+	if itemPortalkey ~= nil and itemPortalkey:CanActivate() then
+		nTotalMana = nTotalMana + itemPortalkey:GetManaCost()
+	end
+
+	return nTotalMana
+end
 
 ------------------------------------------------------
 --            customharassutility override          --
 -- change utility according to usable spells here   --
 ------------------------------------------------------
--- @param: iunitentity hero
--- @return: number
 local function CustomHarassUtilityFnOverride(hero)
     local nUtil = 0
-	local nTotalMana = 0
-     
+	local nTotalMana = getTotalAggressiveManaCost()
+
+	-- check health percentage, be more aggressive with more health
+	-- check total mana availability, add only the utils of what you really can use
+
     if skills.abilDig:CanActivate() then
         nUtil = nUtil + object.nDigUp
-		nTotalMana = skills.abilDig:GetManaCost()
     end
+    if skills.abilGrasp:CanActivate() then
+		nUtil = nUtil + object.nGraspUp
+	end
  
     if skills.abilSand:CanActivate() then
         nUtil = nUtil + object.nSandUp
-		nTotalMana = nTotalMana + skills.abilSand:GetManaCost()
     end
-	
-	if skills.abilGrasp:CanActivate() then
-		if skills.abilSand:GetLevel() == 0 then
-			nUtil = nUtil + object.nSandUp - 10
-		end
-		nUtil = nUtil + object.nGraspUp
-		nTotalMana = nTotalMana + skills.abilGrasp:GetManaCost()
-	end
-	
     if skills.abilCrystal:CanActivate() then
         nUtil = nUtil + object.nCrystalUp
-		nTotalMana = nTotalMana + skills.abilCrystal:GetManaCost()
     end
  
     if object.itemSheepstick and object.itemSheepstick:CanActivate() then
         nUtil = nUtil + object.nSheepstickUp
-		nTotalMana = nTotalMana + object.itemSheepstick:GetManaCost()
     end
-	
 	if object.itemPortalkey and object.itemPortalkey:CanActivate() then 
 		nUtil = nUtil + object.nPortalkeyUp
-		nTotalMana = nTotalMana + object.itemPortalkey:GetManaCost()
 	end
-	
 	if object.itemFrostfield and object.itemFrostfield:CanActivate() then
 		nUtil = nUtil + object.nFrostfieldUp
-		nTotalMana = nTotalMana + object.itemFrostfield:GetManaCost()
 	end
 	
 	local unitSelf = core.unitSelf
 	local nUtilMul = 0
 	
+	-- if we have mana to do e.g. 80% of the skills available, we use only 80% of the aggression util for these skills
 	nUtilMul = unitSelf:GetMana() / nTotalMana
 	
 	if nUtilMul > 1 then
 		nUtilMul = 1
 	end
 	
+	-- if we have more than 70% health, we use the full aggression
+	-- the 70% below get scaled to 30% to 100% and multiplied with the aggression util
+
 	if not (unitSelf:GetHealthPercent() > 0.7) then
 		nUtilMul = nUtilMul * ( ( unitSelf:GetHealthPercent() ) + 0.3 )
 	end
+	-- we ensure that the util never goes above 100
 	nUtil = Clamp(nUtil, 0, 100)
+	-- not more than 100 because nUtilMul can never be more than 1
     return nUtil*nUtilMul
 end
 -- assign custom harass function to the behaviourLib object
@@ -577,19 +618,23 @@ local function ManaBatteryUseUtility(botBrain)
 	local nCharges = 0
 	local bCritical = (nManaPercent < 0.2) or (nHealthPercent < 0.2)
 	local nUtility = 0
-	local bManaBattery = core.itemManabattery and core.itemManabattery:CanActivate()
-	local bPowerSupply = core.itemPowersupply and  core.itemPowersupply:CanActivate()
+
+	local itemPowersupply = core.GetItem(sPowerSupply)
+	local itemManabattery = core.GetItem(sManaBattery)
+
+	local bManaBattery = itemManabattery and itemManabattery:CanActivate()
+	local bPowerSupply = itemPowersupply and itemPowersupply:CanActivate()
 
 
-	if bManaBattery  then
-		nCharges = core.itemManabattery:GetCharges()
+	if bManaBattery then
+		nCharges = itemManabattery:GetCharges()
 	end
 	if bPowerSupply then
-		nCharges = core.itemPowersupply:GetCharges()
+		nCharges = itemPowersupply:GetCharges()
 	end
-	if bManaBattery and bCritical and nCharges > 3 then
+	if bManaBattery and bCritical then
 		nUtility = 100
-	elseif bPowerSupply and bCritical and nCharges > 5 then
+	elseif bPowerSupply and bCritical then
 		nUtility = 100
 	elseif (bPowerSupply and bManaBattery)  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
 		nUtility = 100
@@ -598,10 +643,13 @@ local function ManaBatteryUseUtility(botBrain)
 end
 
 local function ManaBatteryUseExecute(botBrain)
-	if core.itemPowersupply and core.itemPowersupply:CanActivate() then 
-		core.OrderItemClamp(botBrain, unitSelf, core.itemPowersupply, true)
-	elseif core.itemManabattery and core.itemManabattery:CanActivate() then
-		core.OrderItemClamp(botBrain, unitSelf, core.itemManabattery, true)
+	local itemPowersupply = core.GetItem(sPowerSupply)
+	local itemManabattery = core.GetItem(sManaBattery)
+
+	if itemPowersupply ~= nil then 
+		core.OrderItemClamp(botBrain, unitSelf, itemPowersupply, true)
+	elseif itemManabattery ~= nil then
+		core.OrderItemClamp(botBrain, unitSelf, itemManabattery, true)
 	end
 end
 
@@ -611,7 +659,7 @@ behaviorLib.ManaBatteryUseBehavior["Execute"] = ManaBatteryUseExecute
 behaviorLib.ManaBatteryUseBehavior["Name"] = "ManaBatteryUse"
 tinsert(behaviorLib.tBehaviors, behaviorLib.ManaBatteryUseBehavior)
 
----------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 --   return to fountain if g > *
 --   kudos to naib
 ---------------------------------------------------------------------------
@@ -640,6 +688,14 @@ behaviorLib.bigPurseBehavior["Utility"] = behaviorLib.bigPurseUtility
 behaviorLib.bigPurseBehavior["Execute"] = behaviorLib.bigPurseExecute
 behaviorLib.bigPurseBehavior["Name"] = "bigPurse"
 tinsert(behaviorLib.tBehaviors, behaviorLib.bigPurseBehavior)
+]]--
+
+local function getGraspDamage()
+	nLevel = skills.abilGrasp:GetLevel()
+	vecDamageValues = {16, 24, 32, 40}
+	BotEcho("Grasp level: " .. nLevel)
+	return vecDamageValues[nLevel - 1] * 10  -- for 5 seconds, .5 seconds delay in between
+end
 
 
 --------------------------------------------------------------
@@ -656,6 +712,9 @@ local function HarassHeroExecuteOverride(botBrain)
         return object.harassExecuteOld(botBrain) --Target is invalid, move on to the next behavior
     end
     
+    local nLastHarassUtility = behaviorLib.lastHarassUtil
+
+    local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
     
     local unitSelf = core.unitSelf
     local vecMyPosition = unitSelf:GetPosition() 
@@ -666,11 +725,66 @@ local function HarassHeroExecuteOverride(botBrain)
     local nTargetExtraRange = core.GetExtraRange(unitTarget)
     local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
 
-    local nLastHarassUtility = behaviorLib.lastHarassUtil
-    local bCanSee = core.CanSeeUnit(botBrain, unitTarget)    
     local bActionTaken = false
+
+    local nMana = unitSelf:GetMana()
+
+    local nTotalManaCost = getTotalAggressiveManaCost(unitSelf)
+
+    BotEcho("lastHarassUtil: " .. nLastHarassUtility)
+
+
+-- wanted behaviour:
+--   grasp when much mana to harass
+--   grasp when target low hp to keep out of lane (check behaviour)
+--   don't grasp when target is too fast (>= 365 movementspeed)
+--   sand when low hp or high aggression to start initiation
+--   dig in when target has hardly chance to escape
+--      check for own distance to him
+--      his possible locations when you have reached him (stun/slowed)
+--      your stun radius
+--   crystal when many people together (as that is probably a teamfight and you want to spread them)    
+--   crystal when at least one target has no chance to escape and aggression is high
+--   pk in when high aggression and enough TotalMana
+--   use sheepstick like sand
+--   use FFplate after a PK in
+
+	if core.CanSeeUnit(botBrain, unitTarget) and not bActionTaken then
+		-- Magic EHP calculated by correct formula from HoNForum (also, MagicResistance ~= MagicArmor!)
+		local nTargetMagicHitPoints = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
+		local abilGrasp = skills.abilGrasp
+		local bDoGrasp = false
+		local nRange = abilGrasp:GetRange()
+
+		BotEcho("Can See Unit")
+
+		if abilGrasp:CanActivate() and nTargetDistanceSq < nRange*nRange then
+			BotEcho("Grasp can activate & is in range")
+			if nTargetMagicHitPoints < getGraspDamage() / 10 then  -- check if one grasp hit is enough to kill
+				BotEcho("One Hit")
+				doGrasp = true
+			elseif ( unitTarget:GetMoveSpeed() < 365 or unitTarget:IsStunned() or unitTarget:IsImmobilized() ) then
+				BotEcho("is slow enough")
+				if nMana - nGraspCost > nTotalManaCost then
+					doGrasp = true
+				end
+				if getGraspDamage() > nTargetMagicHitPoints then
+					doGrasp = true
+				end
+				if nLastHarassUtility > nGraspThreshold then
+					doGrasp = true
+				end
+			end
+		end
+		if bDoGrasp then
+			bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
+		end
+	end
+
+
+
     if core.CanSeeUnit(botBrain, unitTarget) then
-		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized() or unitTarget:IsPerplexed()
+		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized()
 		local bTargetSlowed = unitTarget:GetMoveSpeed() < 200
 		local bTargetRooted = bTargetVuln or bTargetSlowed
 		local abilDig = skills.abilDig
@@ -724,7 +838,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 			end
 		end
-		
+		--[[
 		if not bActionTaken and abilGrasp:CanActivate() then
 			if nLastHarassUtility > botBrain.nGraspThreshold then
 				
@@ -743,6 +857,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 			end
 		end
+		]]--
 		
 		if not bActionTaken and abilCrystal:CanActivate() then
 			local nRange = abilCrystal:GetRange()
