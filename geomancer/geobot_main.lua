@@ -848,6 +848,7 @@ local function funcPositionOffset(pos, angle, distance)
 	return tmp+pos
 end
 
+
 --cast dig in direction of well
 local function funcEscapeDig(botBrain)
 	local abilDig = skills.abilDig
@@ -931,7 +932,6 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 end
 
 object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
-behaviorLib.RetreatFromThreatBehavior["Utility"] = CustomRetreatFromThreatUtilityFnOverride
 object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
 behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
 
