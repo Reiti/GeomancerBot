@@ -536,7 +536,7 @@ local function funcAbilityPush(botBrain)
 	local bActionTaken = false
 	local unitBestGraspTarget = nil
 	local unitBestDigTarget = nil
-	local nMinManaLeft = 0
+	local nTotalMana = getTotalAggressiveManaCost()
 	
 	local unitSelf = core.unitSelf
 	local abilDig = skills.abilDig
@@ -546,20 +546,8 @@ local function funcAbilityPush(botBrain)
 	
 	local vecMyPosition = unitSelf:GetPosition()
 
-	if not abilDig:GetLevel() == 0 then
-		nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
-	end
-	if abilDig:CanActivate() then
-		nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
-	end
-	if abilSand:CanActivate() then
-		nMinManaLeft = nMinManaLeft + abilSand:GetManaCost()
-	end
-	if abilCrystal:CanActivate() then
-		nMinManaLeft = nMinManaLeft + abilCrystal:GetManaCost()
-	end
 	
-	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft then
+	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotoalMana then
 		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nGraspRadius)
 		if unitBestGraspTarget ~= nil then
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
@@ -569,7 +557,7 @@ local function funcAbilityPush(botBrain)
 			end
 		end
 	end
-	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nMinManaLeft then
+	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nTotalMana then
 		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
 		if unitBestDigTarget ~= nil then
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestDigTarget:GetPosition() )
@@ -603,61 +591,6 @@ object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
 behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
 
 
-
---------------------------------------------------------------
---					   ManaBatteryBehaviour		   			--
---  A behaviour to use the heal/mana items             		--
---------------------------------------------------------------
-
-local function ManaBatteryUseUtility(botBrain)
-	local unitSelf = core.unitSelf
-	local nManaPercent = unitSelf:GetManaPercent()
-	local nHealthPercent = unitSelf:GetHealthPercent()
-	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
-	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
-	local nCharges = 0
-	local bCritical = (nManaPercent < 0.2) or (nHealthPercent < 0.2)
-	local nUtility = 0
-
-	local itemPowersupply = core.GetItem(sPowerSupply)
-	local itemManabattery = core.GetItem(sManaBattery)
-
-	local bManaBattery = itemManabattery and itemManabattery:CanActivate()
-	local bPowerSupply = itemPowersupply and itemPowersupply:CanActivate()
-
-
-	if bManaBattery then
-		nCharges = itemManabattery:GetCharges()
-	end
-	if bPowerSupply then
-		nCharges = itemPowersupply:GetCharges()
-	end
-	if bManaBattery and bCritical then
-		nUtility = 100
-	elseif bPowerSupply and bCritical then
-		nUtility = 100
-	elseif (bPowerSupply and bManaBattery)  and (nHealthMissing > 10*nCharges and nManaMissing > 15*nCharges) then
-		nUtility = 100
-	end
-	return nUtility
-end
-
-local function ManaBatteryUseExecute(botBrain)
-	local itemPowersupply = core.GetItem(sPowerSupply)
-	local itemManabattery = core.GetItem(sManaBattery)
-
-	if itemPowersupply ~= nil then 
-		core.OrderItemClamp(botBrain, unitSelf, itemPowersupply, true)
-	elseif itemManabattery ~= nil then
-		core.OrderItemClamp(botBrain, unitSelf, itemManabattery, true)
-	end
-end
-
-behaviorLib.ManaBatteryUseBehavior = {}
-behaviorLib.ManaBatteryUseBehavior["Utility"] = ManaBatteryUseUtility
-behaviorLib.ManaBatteryUseBehavior["Execute"] = ManaBatteryUseExecute
-behaviorLib.ManaBatteryUseBehavior["Name"] = "ManaBatteryUse"
-tinsert(behaviorLib.tBehaviors, behaviorLib.ManaBatteryUseBehavior)
 
 --[[---------------------------------------------------------------------------
 --   return to fountain if g > *
@@ -694,7 +627,7 @@ local function getGraspDamage()
 	nLevel = skills.abilGrasp:GetLevel()
 	vecDamageValues = {16, 24, 32, 40}
 	BotEcho("Grasp level: " .. nLevel)
-	return vecDamageValues[nLevel - 1] * 10  -- for 5 seconds, .5 seconds delay in between
+	return vecDamageValues[nLevel] * 10  -- for 5 seconds, .5 seconds delay in between
 end
 
 
@@ -909,60 +842,6 @@ tinsert(behaviorLib.tBehaviors, behaviorLib.ManaRingAlwaysBehavior)
 --------------------------------------------------
 -- RetreatFromThreat Override --
 --------------------------------------------------
---pretty much copypasta from 
---DarkFire
---Kairus101
---VHD
---kudos to those geniuses
-
---This function returns the position of the enemy hero.
---If he is not shown on map it returns the last visible spot
---as long as it is not older than 10s
-local function funcGetEnemyPosition(unitEnemy)
-	if unitEnemy == nil then return Vector3.Create(20000, 20000) end
-	local tEnemyPosition = core.unitSelf.tEnemyPosition
-	local tEnemyPositionTimestamp = core.unitSelf.tEnemyPositionTimestamp
-	if tEnemyPosition == nil then
-		-- initialize new table
-		core.unitSelf.tEnemyPosition = {}
-		core.unitSelf.tEnemyPositionTimestamp = {}
-		tEnemyPosition = core.unitSelf.tEnemyPosition
-		tEnemyPositionTimestamp = core.unitSelf.tEnemyPositionTimestamp
-		local tEnemyTeam = HoN.GetHeroes(core.enemyTeam)
-		--vector beyond map
-		for x, hero in pairs(tEnemyTeam) do
-			tEnemyPosition[hero:GetUniqueID()] = Vector3.Create(20000, 20000)
-			tEnemyPositionTimestamp[hero:GetUniqueID()] = HoN.GetGameTime()
-		end
-	end
-	local vecPosition = unitEnemy:GetPosition()
-	--enemy visible?
-	if vecPosition then
-		--update table
-		tEnemyPosition[unitEnemy:GetUniqueID()] = unitEnemy:GetPosition()
-		tEnemyPositionTimestamp[unitEnemy:GetUniqueID()] = HoN.GetGameTime()
-	end
-	--return position, 10s memory
-	if tEnemyPositionTimestamp[unitEnemy:GetUniqueID()] <= HoN.GetGameTime() + 10000 then
-		return tEnemyPosition[unitEnemy:GetUniqueID()]
-	else
-		return Vector3.Create(20000, 20000)
-	end
-end
-
---returns the thread coming from an enemy
-local function funcGetThreatOfEnemy(unitEnemy)
-	if unitEnemy == nil or not unitEnemy:IsAlive() then return 0 end
-	local unitSelf = core.unitSelf
-	local nDistanceSq = Vector3.Distance2DSq(unitSelf:GetPosition(), funcGetEnemyPosition (unitEnemy))
-	if nDistanceSq > 4000000 then return 0 end	
-	local nMyLevel = unitSelf:GetLevel()
-	local nEnemyLevel = unitEnemy:GetLevel()
-	--Level differences increase / decrease actual nThreat
-	local nThreat = object.nEnemyBaseThreat + Clamp(nEnemyLevel - nMyLevel, 0, object.nMaxLevelDifference)
-	nThreat = Clamp(3*(112810000-nDistanceSq) / (4*(19*nDistanceSq+32810000)),0.75,2) * nThreat
-	return nThreat
-end
 
 local function funcPositionOffset(pos, angle, distance) 
 	tmp = Vector3.Create(cos(angle)*distance,sin(angle)*distance)
@@ -971,52 +850,29 @@ end
 
 --cast dig in direction of well
 local function funcEscapeDig(botBrain)
-	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
 	local abilDig = skills.abilDig
-	local vecMyPos=core.unitSelf:GetPosition()
-	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
-		if (abilDig:CanActivate() and HoN.GetGameTime()-object.nRetreatDigTime > 2000) then
-			object.nRetreatDigTime = HoN.GetGameTime()
-			object.bRetreating = true
-			return core.OrderAbilityPosition(botBrain, abilDig, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), abilDig:GetRange()))
+	local bActionTaken = false
+	if abilDig:CanActivate() and core.unitSelf:GetHealthPercent() < .425 then
+		bActionTaken = core.OrerBlinkAbilityToEscape(botBrain, abilDig)
+		if not bActionTaken then
+			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, core.allyWell:GetPosition())
 		end
+		object.bRetreating=true
 	end
-	return false
+	return bActionTaken
 end
 
 --port in direction of well
 local function funcEscapePortal(botBrain)
-	local vecWellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
-	local vecMyPos=core.unitSelf:GetPosition()
-	if (Vector3.Distance2DSq(vecMyPos, vecWellPos)>600*600)then
-		if core.itemPortalkey and core.itemPortalkey:CanActivate() then
-			object.bRetreating = true
-			return core.OrderItemPosition(botBrain, core.unitSelf, core.itemPortalkey, funcPositionOffset(core.unitSelf:GetPosition(), atan2(vecWellPos.y-vecMyPos.y,vecWellPos.x-vecMyPos.x), core.itemPortalkey:GetRange()))
+	local bActionTaken = false
+	if core.itemPortalkey and core.itemPortalkey:CanActivate() then
+		bActionTaken = core.OrderBlinkItemToEscape(botBrain,core.itemPortalkey,true,false)
+		if not bActionTaken then
+			bActionTaken = core.OrderItemPosition(botBrain,core.itemPortalkey,core.allyWell:GetPosition())
+		object.bRetreating = true
 		end
 	end
-	return false
-end
-
---override RetreatFromThreatUtility
-local function CustomRetreatFromThreatUtilityFnOverride(botBrain)
-	local nUtilityOld = behaviorLib.lastRetreatUtil
-	local nUtility = object.RetreatFromThreatUtilityOld(botBrain) * object.nOldRetreatFactor
-
-	--decay with a maximum of 4 utilitypoints per frame to ensure a longer retreat time
-	if nUtilityOld > nUtility +4 then
-		nUtility = nUtilityOld -4
-	end
-	
-	--bonus of allies decrease fear
-	local allies = core.localUnits["AllyHeroes"]
-	local nAllies = core.NumberElements(allies) + 1
-	--get enemy heroes
-	local tEnemyTeam = HoN.GetHeroes(core.enemyTeam)
-	--calculate the threat-value and increase utility value
-	for id, enemy in pairs(tEnemyTeam) do
-		nUtility = nUtility + funcGetThreatOfEnemy(enemy) / nAllies
-	end
-	return Clamp(nUtility, 0, 100)
+	return bActionTaken
 end
 
 --override RetreatFromThreatExecute
