@@ -547,7 +547,7 @@ local function funcAbilityPush(botBrain)
 	local vecMyPosition = unitSelf:GetPosition()
 
 	
-	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotoalMana then
+	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotalMana then
 		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nGraspRadius)
 		if unitBestGraspTarget ~= nil then
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
@@ -671,6 +671,7 @@ local function HarassHeroExecuteOverride(botBrain)
 --   grasp when much mana to harass
 --   grasp when target low hp to keep out of lane (check behaviour)
 --   don't grasp when target is too fast (>= 365 movementspeed)
+
 --   sand when low hp or high aggression to start initiation
 --   dig in when target has hardly chance to escape
 --      check for own distance to him
@@ -713,7 +714,6 @@ local function HarassHeroExecuteOverride(botBrain)
 			bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
 		end
 	end
-
 
 
     if core.CanSeeUnit(botBrain, unitTarget) then
