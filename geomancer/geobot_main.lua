@@ -140,13 +140,13 @@ function object:SkillBuild()
 end
 
 -- melee weight overrides
---behaviorLib.nCreepPushbackMul = 0.6 --default: 1
---behaviorLib.nTargetPositioningMul = 0.7 --default: 1
+behaviorLib.nCreepPushbackMul = 0.5 --default: 1
+behaviorLib.nTargetPositioningMul = 0.6 --default: 1
 
 -- bonus aggression points if a skill is available for use
 object.nDigUp = 27
 object.nSandUp = 23
-object.nGraspUp = 50
+object.nGraspUp = 6
 object.nCrystalUp = 10
 -- items
 object.nPortalkeyUp = 15
@@ -156,7 +156,7 @@ object.nSheepstickUp = 7
 -- bonus aggression points that are applied to the bot upon successfully using a skill
 object.nDigUse = 47
 object.nSandUse = 38
-object.nGraspUse = 0
+object.nGraspUse = 10
 object.nCrystalUse = 30
 -- items
 object.nPortalkeyUse = 0
@@ -170,7 +170,7 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 --thresholds of aggression the bot must reach to use these abilities
 object.nDigThreshold = 51
 object.nSandThreshold = 35
-object.nGraspThreshold = 6
+object.nGraspThreshold = 32
 object.nCrystalThreshold = 58
 object.nDigWithPortalkeyThreshold = 30 -- when you have dig and portalkey up
 object.nFrostfieldThreshold = 50
@@ -343,8 +343,10 @@ function object:oncombateventOverride(EventData)
     local nAddBonus = 0
 
     if EventData.Type == "Ability" then
+    	BotEcho("  ABILILTY EVENT!  InflictorName: "..EventData.InflictorName)
     	nAddBonus = onAbilityEvent(EventData.InflictorName)
     elseif EventData.Type == "Item" then
+    	BotEcho("  ITEM EVENT!  InflictorName: "..EventData.InflictorName)
         if EventData.SourceUnit == core.unitSelf:GetUniqueID() then
         	nAddBonus = onItemEvent(EventData.InflictorName)
     	end
@@ -360,74 +362,6 @@ end
 object.oncombateventOld = object.oncombatevent
 object.oncombatevent    = object.oncombateventOverride
 
-
-
---[[
-------------------------------------------------------
--- FindItems Override
-------------------------------------------------------
-local function funcFindItemsOverride(botBrain)
-	local bUpdated = object.FindItemsOld(botBrain)
-	
-	if core.itemSheepstick ~= nil and not core.itemSheepstick:IsValid() then
-		core.itemSheepStick = nil
-	end
-	
-	if core.itemFrostfield ~= nil and not core.itemFrostfield:IsValid() then
-		core.itemFrostfield = nil
-	end
-	
-	if core.itemPortalkey ~= nil and not core.itemPortalkey:IsValid() then
-		core.itemPortalkey = nil
-	end
-	
-	if core.itemReplenish ~= nil and not core.itemReplenish:IsValid() then
-		core.itemReplenish = nil
-	end
-	
-	if core.itemManabattery ~= nil and not core.itemManabattery:IsValid() then
-		core.itemManabattery = nil
-	end
-	
-	if core.itemPowersupply ~= nil and not core.itemPowersupply:IsValid() then
-		core.itemPowersupply = nil
-	end
-	
-	if bUpdated then
-		if core.itemSheepstick and core.itemFrostfield and core.itemPortalkey and core.itemReplenish and core.itemManabattery and core.itemPowersupply then
-			return
-		end
-		local inventory = core.unitSelf:GetInventory(true)
-		for slot = 1, 12, 1 do
-			local curItem = inventory[slot]
-			if curItem then
-				if core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
-					core.VerboseLog("Sheep")
-					core.itemSheepstick = core.WrapInTable(curItem)
-				elseif core.itemFrostfield == nil and curItem:GetName() == "Item_FrostfieldPlate" then
-					core.VerboseLog("Frostfield")
-					core.itemFrostfield = core.WrapInTable(curItem)
-				elseif core.itemPortalkey == nil  and curItem:GetName() == "Item_PortalKey" then
-					core.VerboseLog("PortalKey")
-					core.itemPortalkey = core.WrapInTable(curItem)
-				elseif core.itemReplenish == nil and curItem:GetName() == "Item_Replenish" then
-					core.VerboseLog("Replenish")
-					core.itemReplenish = core.WrapInTable(curItem)
-				elseif core.itemManabattery == nil and curItem:GetName() == "Item_ManaBattery" then
-					core.VerboseLog("ManaBattery")
-					core.itemManabattery = core.WrapInTable(curItem)
-				elseif core.itemPowersupply == nil and curItem:GetName() == "Item_PowerSupply" then
-					core.VerboseLog("PowerSupply")
-					core.itemPowersupply = core.WrapInTable(curItem)
-				end
-			end
-		end
-	end
-end
-object.FindItemsOld = core.FindItems
-core.FindItems = funcFindItemsOverride
-
-]]
 
 local function getTotalAggressiveManaCost()
 	local nTotalMana = 0
@@ -591,38 +525,6 @@ object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
 behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
 
 
-
---[[---------------------------------------------------------------------------
---   return to fountain if g > *
---   kudos to naib
----------------------------------------------------------------------------
--- Util
-object.purseMax = 6000
-object.purseMin = 3000
-function behaviorLib.bigPurseUtility(botBrain)
-    local Clamp = core.Clamp
-    local m = (100/(object.purseMax - object.purseMin))
-    nUtil = m*botBrain:GetGold() - m*object.purseMin
-    nUtil = Clamp(nUtil,0,100)
- 
- 
-    return nUtil
-end
- 
--- Execute
-function behaviorLib.bigPurseExecute(botBrain)
-    local unitSelf = core.unitSelf
- 
-    local wellPos = core.allyWell and core.allyWell:GetPosition() or behaviorLib.PositionSelfBackUp()
-    core.OrderMoveToPosAndHoldClamp(botBrain, unitSelf, wellPos, false)
-end  
-behaviorLib.bigPurseBehavior = {}
-behaviorLib.bigPurseBehavior["Utility"] = behaviorLib.bigPurseUtility
-behaviorLib.bigPurseBehavior["Execute"] = behaviorLib.bigPurseExecute
-behaviorLib.bigPurseBehavior["Name"] = "bigPurse"
-tinsert(behaviorLib.tBehaviors, behaviorLib.bigPurseBehavior)
-]]--
-
 local function getGraspDamage()
 	nLevel = skills.abilGrasp:GetLevel()
 	vecDamageValues = {16, 24, 32, 40}
@@ -631,17 +533,81 @@ local function getGraspDamage()
 end
 
 
+
+
+
+-- tracks movement for targets based on a list, so its reusable
+-- key is the identifier for different uses (fe. RaMeteor for his path of destruction)
+-- vTargetPos should be passed the targets position of the moment
+-- to use this for prediction add the vector to a units position and multiply it
+-- the function checks for 100ms cycles so one second should be multiplied by 20
+
+local tRelativeMovements = {}
+local function createRelativeMovementTable(key)
+	--BotEcho('Created a relative movement table for: '..key)
+	tRelativeMovements[key] = {
+		vLastPos = Vector3.Create(),
+		vRelMov = Vector3.Create(),
+		timestamp = 0
+	}
+--	BotEcho('Created a relative movement table for: '..tRelativeMovements[key].timestamp)
+end
+createRelativeMovementTable("GeoSand") -- for aggressive sand
+createRelativeMovementTable("GeoDig")
+createRelativeMovementTable("CreepPush") -- for creep-groups while pushing (meteor)
+
+local function relativeMovement(sKey, vTargetPos)
+	local debugEchoes = false
+	
+	local gameTime = HoN.GetGameTime()
+	local key = sKey
+	local vLastPos = tRelativeMovements[key].vLastPos
+	local nTS = tRelativeMovements[key].timestamp
+	local timeDiff = gameTime - nTS 
+	
+	if debugEchoes then
+		BotEcho('Updating relative movement for key: '..key)
+		BotEcho('Relative Movement position: '..vTargetPos.x..' | '..vTargetPos.y..' at timestamp: '..nTS)
+		BotEcho('Relative lastPosition is this: '..vLastPos.x)
+	end
+	
+	if timeDiff >= 90 and timeDiff <= 140 then -- 100 should be enough (every second cycle)
+		local relativeMov = vTargetPos-vLastPos
+		
+		if vTargetPos.LengthSq > vLastPos.LengthSq
+		then relativeMov =  relativeMov*-1 end
+		
+		tRelativeMovements[key].vRelMov = relativeMov
+		tRelativeMovements[key].vLastPos = vTargetPos
+		tRelativeMovements[key].timestamp = gameTime
+		
+		
+		if debugEchoes then
+			BotEcho('Relative movement -- x: '..relativeMov.x..' y: '..relativeMov.y)
+			BotEcho('^r---------------Return new-'..tRelativeMovements[key].vRelMov.x)
+		end
+		
+		return relativeMov
+	elseif timeDiff >= 150 then
+		tRelativeMovements[key].vRelMov =  Vector3.Create(0,0)
+		tRelativeMovements[key].vLastPos = vTargetPos
+		tRelativeMovements[key].timestamp = gameTime
+	end
+	
+	if debugEchoes then BotEcho('^g---------------Return old-'..tRelativeMovements[key].vRelMov.x) end
+	return tRelativeMovements[key].vRelMov
+end
+
+
 --------------------------------------------------------------
 --                    Harass Behavior                       --
 -- All code how to use abilities against enemies goes here  --
 --------------------------------------------------------------
--- @param botBrain: CBotBrain
--- @return: none
---
+
 local function HarassHeroExecuteOverride(botBrain)
     
     local unitTarget = behaviorLib.heroTarget
-    if unitTarget == nil then
+    if unitTarget == nil or not unitTarget:IsValid() then
         return object.harassExecuteOld(botBrain) --Target is invalid, move on to the next behavior
     end
     
@@ -666,6 +632,8 @@ local function HarassHeroExecuteOverride(botBrain)
 
     BotEcho("lastHarassUtil: " .. nLastHarassUtility)
 
+    local nPredictSand = 4
+	local relativeMov = relativeMovement("GeoSand", vecTargetPosition) * nPredictSand
 
 -- wanted behaviour:
 --   grasp when much mana to harass
@@ -682,39 +650,78 @@ local function HarassHeroExecuteOverride(botBrain)
 --   pk in when high aggression and enough TotalMana
 --   use sheepstick like sand
 --   use FFplate after a PK in
+	
+	local bTargetCanMove = not unitTarget:IsStunned() and not unitTarget:IsImmobilized()
 
-	if core.CanSeeUnit(botBrain, unitTarget) and not bActionTaken then
+	if bCanSeeTarget and not bActionTaken then
 		-- Magic EHP calculated by correct formula from HoNForum (also, MagicResistance ~= MagicArmor!)
-		local nTargetMagicHitPoints = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
+		
 		local abilGrasp = skills.abilGrasp
-		local bDoGrasp = false
 		local nRange = abilGrasp:GetRange()
 
 		BotEcho("Can See Unit")
 
 		if abilGrasp:CanActivate() and nTargetDistanceSq < nRange*nRange then
 			BotEcho("Grasp can activate & is in range")
+			local nTargetMagicHitPoints = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
+			local bDoGrasp = false
+
 			if nTargetMagicHitPoints < getGraspDamage() / 10 then  -- check if one grasp hit is enough to kill
 				BotEcho("One Hit")
-				doGrasp = true
-			elseif ( unitTarget:GetMoveSpeed() < 365 or unitTarget:IsStunned() or unitTarget:IsImmobilized() ) then
+				bDoGrasp = true
+			elseif ( unitTarget:GetMoveSpeed() < 365 or not bTargetCanMove ) then
 				BotEcho("is slow enough")
 				if nMana - nGraspCost > nTotalManaCost then
-					doGrasp = true
+					BotEcho("Do the mana grasp")
+					bDoGrasp = true
+				elseif getGraspDamage() > nTargetMagicHitPoints then
+					BotEcho("Do the killing grasp")
+					bDoGrasp = true
+				elseif nLastHarassUtility > object.nGraspThreshold then
+					BotEcho("Do the aggression grasp")
+					bDoGrasp = true
 				end
-				if getGraspDamage() > nTargetMagicHitPoints then
-					doGrasp = true
-				end
-				if nLastHarassUtility > nGraspThreshold then
-					doGrasp = true
+			end
+			if bDoGrasp then
+				bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
+				if bActionTaken then 
+					BotEcho("grasped!")
 				end
 			end
 		end
-		if bDoGrasp then
-			bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
-		end
 	end
 
+	if not bActionTaken then
+		local abilSand = skills.abilSand
+		local nRange = abilSand:GetRange()
+		local castActionTime = 0.3
+		-- decided for no accurate prediction, because castactiontime = 300ms and radius is 250u
+		-- approximating will have to do: center point at predicted movement + 75
+		local nOffset = 75
+		-- result: there are 175u Sand behind the target, 325 in front of him
+		if abilSand:CanActivate() and nLastHarassUtility > object.nSandThreshold then
+			if not bTargetCanMove then
+				bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
+			else
+				local vecPredictedEnemyMovement = Vector3.Create(0, 0)
+				local nAngle = 0
+				if not unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition then
+					local vecEnemyHeading = unitTarget:GetHeading()
+					nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
+					local vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * 0.3 -- in 0.3 seconds, the castactiontime
+				else
+					local vecEnemyToWell = core.enemyWell - vecTargetPosition
+					nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
+				end
+				local vecOffset = Vector3.Create(cos(nAngle) * nOffset, sin(nAngle) * nOffset)
+				-- as cos(alpha) is the x, and sin the y component
+				local vecCastPosition = vecTargetPosition + vecPredictedEnemyMovement + vecOffset
+				if Vector3.Distance2DSq(vecMyPosition, vecCastPosition) < nRange*nRange then
+					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecCastPosition)
+				end
+			end
+		end
+	end
 
     if core.CanSeeUnit(botBrain, unitTarget) then
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized()
@@ -762,35 +769,7 @@ local function HarassHeroExecuteOverride(botBrain)
 			end
 		end
 		
-		if not bActionTaken and abilSand:CanActivate() then
-			if not bTargetSlowed and nLastHarassUtility > botBrain.nSandThreshold then
-				local nRange = abilSand:GetRange()
-				
-				if nTargetDistanceSq < (nRange * nRange) then
-					bActionTaken = core.OrderAbilityPosition(botBrain, abilSand, funcPredictNextPosition(botBrain, unitTarget, vecTargetPosition,  object.nQuicksandRadius) )
-				end
-			end
-		end
-		--[[
-		if not bActionTaken and abilGrasp:CanActivate() then
-			if nLastHarassUtility > botBrain.nGraspThreshold then
-				
-				local nRange = abilGrasp:GetRange()
-				local nMinManaLeft = 0
-				
-				if not abilDig:GetLevel() == 0 then
-					nMinManaLeft = nMinManaLeft + abilDig:GetManaCost()
-				end
-				if abilSand:CanActivate() then
-					nMinManaLeft = nMinManaLeft + abilSand:GetManaCost()
-				end
-				
-				if (unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nMinManaLeft and nTargetDistanceSq < (nRange*nRange) then
-					bActionTaken = core.OrderAbilityEntity(botBrain, abilGrasp, unitTarget)
-				end
-			end
-		end
-		]]--
+		
 		
 		if not bActionTaken and abilCrystal:CanActivate() then
 			local nRange = abilCrystal:GetRange()
@@ -954,7 +933,7 @@ local function ProcessKillChatOverride(unitTarget, sTargetPlayerName)
         return
     end  
       
-    local nToSpamOrNotToSpam = random(0,100)/100
+    local nToSpamOrNotToSpam = random(0,1)
     BotEcho(core.nKillChatChance)
     if(nToSpamOrNotToSpam < core.nKillChatChance) then
         local nDelay = random(core.nChatDelayMin, core.nChatDelayMax)
