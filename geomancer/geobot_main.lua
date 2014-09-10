@@ -547,7 +547,7 @@ local function funcAbilityPush(botBrain)
 	local vecMyPosition = unitSelf:GetPosition()
 
 	
-	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotoalMana then
+	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotalMana then
 		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nGraspRadius)
 		if unitBestGraspTarget ~= nil then
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
@@ -704,7 +704,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				if getGraspDamage() > nTargetMagicHitPoints then
 					doGrasp = true
 				end
-				if nLastHarassUtility > nGraspThreshold then
+				if nLastHarassUtility > object.nGraspThreshold then
 					doGrasp = true
 				end
 			end
