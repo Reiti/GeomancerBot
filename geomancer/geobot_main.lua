@@ -97,9 +97,9 @@ local function getCrystalCost( nLevel )
 	end
 end
 
--- item buy order. internal names  
+-- item buy order. internal names  (Intel5 is Talisman of Exile)
 behaviorLib.StartingItems  = {"Item_MarkOfTheNovice", "2 Item_MinorTotem", "Item_RunesOfTheBlight", "Item_ManaPotion", "Item_HealthPotion"}
-behaviorLib.LaneItems      = {sManaBattery, sPowerSupply, sSteamboots,"Item_MysticVestments", sRingOfSorcery}
+behaviorLib.LaneItems      = {sManaBattery, "Item_Intelligence5", sPowerSupply, sSteamboots,"Item_MysticVestments", sRingOfSorcery}
 behaviorLib.MidItems       = {sPortalkey, sFrostfield}
 behaviorLib.LateItems      = {sSheepstick, "Item_GrimoireOfPower"}
 
@@ -481,9 +481,10 @@ local function funcAbilityPush(botBrain)
 	
 	local vecMyPosition = unitSelf:GetPosition()
 
+	local enemyCreeps = core.localUnits["EnemyCreeps"]
 	
 	if abilGrasp:CanActivate() and ( unitSelf:GetMana() - abilGrasp:GetManaCost() ) > nTotalMana then
-		unitBestGraspTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nGraspRadius)
+		unitBestGraspTarget = funcBestTargetAOE(enemyCreeps, object.nGraspRadius)
 		if unitBestGraspTarget ~= nil then
 			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestGraspTarget:GetPosition() )
 			local nRange = abilGrasp:GetRange()
@@ -492,13 +493,18 @@ local function funcAbilityPush(botBrain)
 			end
 		end
 	end
-	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nTotalMana then
-		unitBestDigTarget = funcBestTargetAOE(core.localUnits["EnemyCreeps"], object.nDigStunRadius)
-		if unitBestDigTarget ~= nil then
-			local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestDigTarget:GetPosition() )
-			local nRange = abilDig:GetRange()
-			if nTargetDistanceSq < (nRange * nRange) then
-				bActionTaken = funcCastDig(botBrain, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nTotalMana then -- we have enough mana for at least another dig (escape)
+		local count = 0
+		for _ in pairs(enemyCreeps) do count = count + 1 end
+		BotEcho("There are " .. count .. " enemy creeps around.")
+		if count >= 3 then 
+			unitBestDigTarget = funcBestTargetAOE(enemyCreeps, object.nDigStunRadius)
+			if unitBestDigTarget ~= nil then
+				local nTargetDistanceSq = Vector3.Distance2DSq( vecMyPosition, unitBestDigTarget:GetPosition() )
+				local nRange = abilDig:GetRange()
+				if nTargetDistanceSq < (nRange * nRange) then
+					bActionTaken = funcCastDig(botBrain, unitBestDigTarget:GetPosition(), unitBestDigTarget)
+				end
 			end
 		end
 	end
@@ -543,6 +549,8 @@ end
 -- to use this for prediction add the vector to a units position and multiply it
 -- the function checks for 100ms cycles so one second should be multiplied by 20
 
+-- NOT CURRENTLY USED!
+
 local tRelativeMovements = {}
 local function createRelativeMovementTable(key)
 	--BotEcho('Created a relative movement table for: '..key)
@@ -553,7 +561,7 @@ local function createRelativeMovementTable(key)
 	}
 --	BotEcho('Created a relative movement table for: '..tRelativeMovements[key].timestamp)
 end
-createRelativeMovementTable("GeoSand") -- for aggressive sand
+-- createRelativeMovementTable("GeoSand") -- for aggressive sand
 createRelativeMovementTable("GeoDig")
 createRelativeMovementTable("CreepPush") -- for creep-groups while pushing (meteor)
 
@@ -633,15 +641,13 @@ local function HarassHeroExecuteOverride(botBrain)
 
     BotEcho("lastHarassUtil: " .. nLastHarassUtility)
 
-    local nPredictSand = 4
-	local relativeMov = relativeMovement("GeoSand", vecTargetPosition) * nPredictSand
-
 -- wanted behaviour:
+--  IMPLEMENTED:
 --   grasp when much mana to harass
 --   grasp when target low hp to keep out of lane (check behaviour)
 --   don't grasp when target is too fast (>= 365 movementspeed)
 --   sand when high aggression to start initiation
-
+--  TODO:
 --   don't sand when no damage abilities up and no allies are around
 --   dig in when target has hardly chance to escape
 --      check for own distance to him
@@ -784,8 +790,6 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 			end
 		end
-		
-		
 		
 		if not bActionTaken and abilCrystal:CanActivate() then
 			local nRange = abilCrystal:GetRange()

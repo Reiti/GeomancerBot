@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bot
-	name="Geobot"
+	name="GeoBot"
 	description="A Geomancer bot by NotReiti and Giymo11"
 	heroname="Hero_Geomancer"
 	rootlua="geobot_main.lua"
