@@ -368,11 +368,8 @@ object.oncombatevent    = object.oncombateventOverride
 
 
 local function getTotalAggressiveManaCost()
-	local nTotalMana = 0
+	local nTotalMana = skills.abilDig:GetManaCost() -- always save mana for this one, even if it's on CD
 
-	if skills.abilDig:GetLevel() > 0 then -- always save mana for this one, even if it's on CD
-		nTotalMana = skills.abilDig:GetManaCost()
-	end
 	if skills.abilGrasp:CanActivate() then
 		nTotalMana = nTotalMana + skills.abilGrasp:GetManaCost()
 	end
@@ -658,6 +655,8 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	local bTargetCanMove = not unitTarget:IsStunned() and not unitTarget:IsImmobilized()
 
+
+	-- Grasp
 	if bCanSeeTarget and not bActionTaken then
 		-- Magic EHP calculated by correct formula from HoNForum (also, MagicResistance ~= MagicArmor!)
 		
@@ -697,6 +696,8 @@ local function HarassHeroExecuteOverride(botBrain)
 		end
 	end
 
+
+	-- Quicksand
 	if not bActionTaken then
 		local abilSand = skills.abilSand
 		local nRange = abilSand:GetRange()
@@ -715,8 +716,13 @@ local function HarassHeroExecuteOverride(botBrain)
 				local nAngle = 0
 				if not unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition then
 					local vecEnemyHeading = unitTarget:GetHeading()
-					nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
-					local vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * 0.3 -- in 0.3 seconds, the castactiontime
+					if not vecEnemyHeading and unitTarget.storedPosition and unitTarget.lastStoredPosition then
+						vecEnemyHeading = core.enemyWell - vecTargetPosition
+					end
+					if vecEnemyHeading then
+						nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
+						vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * castActionTime
+					end
 				else
 					local vecEnemyToWell = core.enemyWell - vecTargetPosition
 					nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
