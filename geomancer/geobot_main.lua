@@ -140,12 +140,12 @@ function object:SkillBuild()
 end
 
 -- melee weight overrides
-behaviorLib.nCreepPushbackMul = 0.5 --default: 1
-behaviorLib.nTargetPositioningMul = 0.6 --default: 1
+behaviorLib.nCreepPushbackMul = 0.6 --default: 1
+behaviorLib.nTargetPositioningMul = 0.7 --default: 1
 
 -- bonus aggression points if a skill is available for use
-object.nDigUp = 27
-object.nSandUp = 23
+object.nDigUp = 17
+object.nSandUp = 15
 object.nGraspUp = 6
 object.nCrystalUp = 10
 -- items
@@ -154,21 +154,21 @@ object.nFrostfieldUp = 8
 object.nSheepstickUp = 7
 
 -- bonus aggression points that are applied to the bot upon successfully using a skill
-object.nDigUse = 47
-object.nSandUse = 38
+object.nDigUse = 30
+object.nSandUse = 18
 object.nGraspUse = 10
-object.nCrystalUse = 30
+object.nCrystalUse = 25
 -- items
 object.nPortalkeyUse = 0
-object.nFrostfieldUse = 18
-object.nSheepstickUse = 17
+object.nFrostfieldUse = 22
+object.nSheepstickUse = 18
 
 -- bonu aggression points for enemy status effects
 object.nSlowedAggressionBonus = 10  -- only applicable for dig
 object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 --thresholds of aggression the bot must reach to use these abilities
-object.nDigThreshold = 51
+object.nDigThreshold = 62
 object.nSandThreshold = 35
 object.nGraspThreshold = 32
 object.nCrystalThreshold = 58
@@ -314,7 +314,9 @@ local function onAbilityEvent( sInflictorName )
         return object.nGraspUse
     elseif sInflictorName == "Ability_Geomancer4" then
         return object.nCrystalUse
-    end
+    else
+    	return 0
+	end
 end
 
 local function onItemEvent( sInflictorName )
@@ -328,7 +330,9 @@ local function onItemEvent( sInflictorName )
         return self.nFrostfieldUse
     elseif itemPortalkey ~= nil and sInflictorName == itemPortalkey:GetName() then
         return self.nPortalkeyUse
-    end
+    else 
+    	return 0
+	end
 end
 
 function object:oncombateventOverride(EventData)
@@ -366,7 +370,7 @@ object.oncombatevent    = object.oncombateventOverride
 local function getTotalAggressiveManaCost()
 	local nTotalMana = 0
 
-	if skills.abilDig:CanActivate() then
+	if skills.abilDig:GetLevel() > 0 then -- always save mana for this one, even if it's on CD
 		nTotalMana = skills.abilDig:GetManaCost()
 	end
 	if skills.abilGrasp:CanActivate() then
@@ -639,8 +643,9 @@ local function HarassHeroExecuteOverride(botBrain)
 --   grasp when much mana to harass
 --   grasp when target low hp to keep out of lane (check behaviour)
 --   don't grasp when target is too fast (>= 365 movementspeed)
+--   sand when high aggression to start initiation
 
---   sand when low hp or high aggression to start initiation
+--   don't sand when no damage abilities up and no allies are around
 --   dig in when target has hardly chance to escape
 --      check for own distance to him
 --      his possible locations when you have reached him (stun/slowed)
@@ -665,8 +670,9 @@ local function HarassHeroExecuteOverride(botBrain)
 			BotEcho("Grasp can activate & is in range")
 			local nTargetMagicHitPoints = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
 			local bDoGrasp = false
+			local nGraspDamage = getGraspDamage()
 
-			if nTargetMagicHitPoints < getGraspDamage() / 10 then  -- check if one grasp hit is enough to kill
+			if nTargetMagicHitPoints < nGraspDamage / 10 then  -- check if one grasp hit is enough to kill
 				BotEcho("One Hit")
 				bDoGrasp = true
 			elseif ( unitTarget:GetMoveSpeed() < 365 or not bTargetCanMove ) then
@@ -674,7 +680,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				if nMana - nGraspCost > nTotalManaCost then
 					BotEcho("Do the mana grasp")
 					bDoGrasp = true
-				elseif getGraspDamage() > nTargetMagicHitPoints then
+				elseif nGraspDamage > nTargetMagicHitPoints then
 					BotEcho("Do the killing grasp")
 					bDoGrasp = true
 				elseif nLastHarassUtility > object.nGraspThreshold then
@@ -701,7 +707,9 @@ local function HarassHeroExecuteOverride(botBrain)
 		-- result: there are 175u Sand behind the target, 325 in front of him
 		if abilSand:CanActivate() and nLastHarassUtility > object.nSandThreshold then
 			if not bTargetCanMove then
+				BotEcho("target cannot move!")
 				bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
+				if bActionTaken then BotEcho("Ordered Sand!") end
 			else
 				local vecPredictedEnemyMovement = Vector3.Create(0, 0)
 				local nAngle = 0
@@ -717,7 +725,9 @@ local function HarassHeroExecuteOverride(botBrain)
 				-- as cos(alpha) is the x, and sin the y component
 				local vecCastPosition = vecTargetPosition + vecPredictedEnemyMovement + vecOffset
 				if Vector3.Distance2DSq(vecMyPosition, vecCastPosition) < nRange*nRange then
+					BotEcho("predicted enemy position in range!")
 					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecCastPosition)
+					if bActionTaken then BotEcho("Ordered Sand!") end
 				end
 			end
 		end
@@ -833,7 +843,7 @@ local function funcEscapeDig(botBrain)
 	local abilDig = skills.abilDig
 	local bActionTaken = false
 	if abilDig:CanActivate() and core.unitSelf:GetHealthPercent() < .425 then
-		bActionTaken = core.OrerBlinkAbilityToEscape(botBrain, abilDig)
+		bActionTaken = core.OrderBlinkAbilityToEscape(botBrain, abilDig)
 		if not bActionTaken then
 			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, core.allyWell:GetPosition())
 		end
