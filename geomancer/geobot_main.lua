@@ -146,7 +146,7 @@ behaviorLib.nTargetPositioningMul = 0.7 --default: 1
 -- bonus aggression points if a skill is available for use
 object.nDigUp = 17
 object.nSandUp = 15
-object.nGraspUp = 6
+object.nGraspUp = 7
 object.nCrystalUp = 10
 -- items
 object.nPortalkeyUp = 15
@@ -156,7 +156,7 @@ object.nSheepstickUp = 7
 -- bonus aggression points that are applied to the bot upon successfully using a skill
 object.nDigUse = 30
 object.nSandUse = 18
-object.nGraspUse = 4
+object.nGraspUse = 6
 object.nCrystalUse = 25
 -- items
 object.nPortalkeyUse = 0
@@ -169,7 +169,7 @@ object.nRootedAggressionBonus = 15  -- only applicable for crystal
 
 --thresholds of aggression the bot must reach to use these abilities
 object.nDigThreshold = 62
-object.nSandThreshold = 35
+object.nSandOrSheepstickThreshold = 35
 object.nGraspThreshold = 32
 object.nCrystalThreshold = 58
 object.nDigWithPortalkeyThreshold = 30 -- when you have dig and portalkey up
@@ -669,6 +669,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	local abilSand = skills.abilSand
 	local abilDig = skills.abilDig
 	local abilCrystal = skills.abilCrystal
+	local itemSheepstick = core.GetItem(sSheepstick)
 
 	-- Grasp
 	if bCanSeeTarget and not bActionTaken then
@@ -715,13 +716,12 @@ local function HarassHeroExecuteOverride(botBrain)
 		
 		local doSand = false
 
-		local nRange = abilSand:GetRange()
 		local castActionTime = 0.3
 		-- decided for no accurate prediction, because castactiontime = 300ms and radius is 250u
 		-- approximating will have to do: center point at predicted movement + 75
 		local nOffset = 75
 		-- result: there are 175u Sand behind the target, 325 in front of him
-		if abilSand:CanActivate() and nLastHarassUtility > object.nSandThreshold then
+		if ( abilSand:CanActivate() or (itemSheepstick and itemSheepstick:CanActivate()) ) and nLastHarassUtility > object.nSandOrSheepstickThreshold then
 			if abilDig:CanActivate() and ( abilGrasp:CanActivate() or abilCrystal:CanActivate() ) then -- we have enough damage abilities
 				local nManaCost = abilSand:GetManaCost() + abilDig:GetManaCost()
 				if abilGrasp:CanActivate() and nManaCost + abilGrasp:GetManaCost() < unitSelf:GetMana() then
@@ -738,10 +738,15 @@ local function HarassHeroExecuteOverride(botBrain)
 				end
 			end
 			if doSand then
-				if not bTargetCanMove then
+				if not bTargetCanMove and abilSand:CanActivate() then
 					BotEcho("target cannot move!")
 					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
 					if bActionTaken then BotEcho("Ordered Sand!") end
+				elseif itemSheepstick:CanActivate() and bCanSeeTarget then
+					local nRange = itemSheepstick:GetRange()
+					if Vector3.Distance2DSq(vecMyPosition, vecTargetPosition) < nRange*nRange then
+						bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
+					end
 				else
 					local vecPredictedEnemyMovement = Vector3.Create(0, 0)
 					local nAngle = 0
@@ -761,6 +766,9 @@ local function HarassHeroExecuteOverride(botBrain)
 					local vecOffset = Vector3.Create(cos(nAngle) * nOffset, sin(nAngle) * nOffset)
 					-- as cos(alpha) is the x, and sin the y component
 					local vecCastPosition = vecTargetPosition + vecPredictedEnemyMovement + vecOffset
+
+					local nRange = abilSand:GetRange()
+
 					if Vector3.Distance2DSq(vecMyPosition, vecCastPosition) < nRange*nRange then
 						BotEcho("predicted enemy position in range!")
 						bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecCastPosition)
@@ -779,7 +787,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilGrasp = skills.abilGrasp
 		local abilSand = skills.abilSand
 		local abilCrystal = skills.abilCrystal
-		local itemSheepstick = core.itemSheepstick
+		
 		
 		if not bActionTaken and itemSheepstick then
 			local nRange = itemSheepstick:GetRange()
