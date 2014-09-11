@@ -774,7 +774,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					local vecPredictedEnemyMovement = Vector3.Create(0, 0)
 					local nAngle = 0
 					if unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition or unitTarget:GetHealthPercent() < .4 then
-						local vecEnemyToWell = core.enemyWell - vecTargetPosition
+						local vecEnemyToWell = core.enemyWell:GetPosition() - vecTargetPosition
 						nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
 					else
 						local vecEnemyHeading = unitTarget:GetHeading()
