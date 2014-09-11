@@ -894,7 +894,7 @@ local function funcEscapeDig(botBrain)
 	local abilDig = skills.abilDig
 	local bActionTaken = false
 	local vecTarget = behaviorLib.GetSafeBlinkPosition(core.allyWell:GetPosition(), abilDig:GetRange())
-	if abilDig:CanActivate() and core.unitSelf:GetHealthPercent() < .425 then
+	if abilDig:CanActivate() and core.unitSelf:GetHealthPercent() < .4 then
 		bActionTaken = funcCastEscapeDig(botBrain, vecTarget)
 		if not bActionTaken then
 			bActionTaken = funcCastEscapeDig(botBrain, core.allyWell:GetPosition())
@@ -926,7 +926,7 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local vecPos = behaviorLib.PositionSelfBackUp()
 	local nlastRetreatUtil = behaviorLib.lastRetreatUtil
 	local nNow = HoN.GetGameTime()
-	local abilDiguick = skills.abilSand
+	local abilQuick = skills.abilSand
 	
 	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and funcEscapeDig(botBrain) then return true end
 	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and funcEscapePortal(botBrain) then return true end
@@ -946,14 +946,14 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 				end
 			end
 		end
-		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold and abilDiguick:CanActivate() then
-			local nRange = abilDiguick:GetRange()
+		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold and abilQuick:CanActivate() then
+			local nRange = abilQuick:GetRange()
 			for key,hero in pairs(tThreats) do
 				local heroPos = hero:GetPosition()
 				local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPos, heroPos)
 				if nTargetDistanceSq < (nRange*nRange) then
 				bRetreating = true
-					core.OrderAbilityPosition(botBrain, abilDiguick, heroPos)
+					core.OrderAbilityPosition(botBrain, abilQuick, heroPos)
 					return true
 				end
 			  end
@@ -971,11 +971,22 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 			end
 		end
 	end
-	return core.OrderMoveToPosClamp(botBrain, core.unitSelf, vecPos, false)
+	return false
 end
 
 object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
 behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
+
+
+-------------------------------------------------
+--	  HealAtWellExecute Overide	  --
+-------------------------------------------------
+
+function behaviorLib.CustomReturnToWellExecute(botBrain)
+	local abilDig = skills.abilDig
+	local vecTarget = behaviorLib.GetSafeBlinkPosition(core.allyWell:GetPosition(), abilDig:GetRange())
+	return funcCastEscapeDig(botBrain,vecTarget)
+end
 
 ------------------------------------------------
 --				Chat Overrides                --
