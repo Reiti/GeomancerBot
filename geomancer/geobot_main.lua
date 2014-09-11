@@ -651,8 +651,8 @@ local function HarassHeroExecuteOverride(botBrain)
 --   grasp when target low hp to keep out of lane (check behaviour)
 --   don't grasp when target is too fast (>= 365 movementspeed)
 --   sand when high aggression to start initiation
---  TODO:
 --   don't sand when no damage abilities up and no allies are around
+--  TODO:
 --   dig in when target has hardly chance to escape
 --      check for own distance to him
 --      his possible locations when you have reached him (stun/slowed)
@@ -665,12 +665,15 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	local bTargetCanMove = not unitTarget:IsStunned() and not unitTarget:IsImmobilized()
 
+	local abilGrasp = skills.abilGrasp
+	local abilSand = skills.abilSand
+	local abilDig = skills.abilDig
+	local abilCrystal = skills.abilCrystal
 
 	-- Grasp
 	if bCanSeeTarget and not bActionTaken then
 		-- Magic EHP calculated by correct formula from HoNForum (also, MagicResistance ~= MagicArmor!)
 		
-		local abilGrasp = skills.abilGrasp
 		local nRange = abilGrasp:GetRange()
 
 		BotEcho("Can See Unit")
@@ -709,7 +712,9 @@ local function HarassHeroExecuteOverride(botBrain)
 
 	-- Quicksand
 	if not bActionTaken then
-		local abilSand = skills.abilSand
+		
+		local doSand = false
+
 		local nRange = abilSand:GetRange()
 		local castActionTime = 0.3
 		-- decided for no accurate prediction, because castactiontime = 300ms and radius is 250u
@@ -717,33 +722,50 @@ local function HarassHeroExecuteOverride(botBrain)
 		local nOffset = 75
 		-- result: there are 175u Sand behind the target, 325 in front of him
 		if abilSand:CanActivate() and nLastHarassUtility > object.nSandThreshold then
-			if not bTargetCanMove then
-				BotEcho("target cannot move!")
-				bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
-				if bActionTaken then BotEcho("Ordered Sand!") end
-			else
-				local vecPredictedEnemyMovement = Vector3.Create(0, 0)
-				local nAngle = 0
-				if not unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition then
-					local vecEnemyHeading = unitTarget:GetHeading()
-					if not vecEnemyHeading and unitTarget.storedPosition and unitTarget.lastStoredPosition then
-						vecEnemyHeading = core.enemyWell - vecTargetPosition
-					end
-					if vecEnemyHeading then
-						nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
-						vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * castActionTime
-					end
-				else
-					local vecEnemyToWell = core.enemyWell - vecTargetPosition
-					nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
+			if abilDig:CanActivate() and ( abilGrasp:CanActivate() or abilCrystal:CanActivate() ) then -- we have enough damage abilities
+				local nManaCost = abilSand:GetManaCost() + abilDig:GetManaCost()
+				if abilGrasp:CanActivate() and nManaCost + abilGrasp:GetManaCost() < unitSelf:GetMana() then
+					doSand = true
+				elseif abilCrystal:CanActivate() and nManaCost + abilCrystal:GetManaCost() < unitSelf:GetMana() then
+					doSand = true
 				end
-				local vecOffset = Vector3.Create(cos(nAngle) * nOffset, sin(nAngle) * nOffset)
-				-- as cos(alpha) is the x, and sin the y component
-				local vecCastPosition = vecTargetPosition + vecPredictedEnemyMovement + vecOffset
-				if Vector3.Distance2DSq(vecMyPosition, vecCastPosition) < nRange*nRange then
-					BotEcho("predicted enemy position in range!")
-					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecCastPosition)
+			else
+				local allyHeroes = core.localUnits["AllyHeroes"]
+				local count = 0
+				for _ in pairs(allyHeroes) do count = count + 1 end
+				if count > 0 then
+					doSand = true
+				end
+			end
+			if doSand then
+				if not bTargetCanMove then
+					BotEcho("target cannot move!")
+					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
 					if bActionTaken then BotEcho("Ordered Sand!") end
+				else
+					local vecPredictedEnemyMovement = Vector3.Create(0, 0)
+					local nAngle = 0
+					if not unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition then
+						local vecEnemyHeading = unitTarget:GetHeading()
+						if not vecEnemyHeading and unitTarget.storedPosition and unitTarget.lastStoredPosition then
+							vecEnemyHeading = core.enemyWell - vecTargetPosition
+						end
+						if vecEnemyHeading then
+							nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
+							vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * castActionTime
+						end
+					else
+						local vecEnemyToWell = core.enemyWell - vecTargetPosition
+						nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
+					end
+					local vecOffset = Vector3.Create(cos(nAngle) * nOffset, sin(nAngle) * nOffset)
+					-- as cos(alpha) is the x, and sin the y component
+					local vecCastPosition = vecTargetPosition + vecPredictedEnemyMovement + vecOffset
+					if Vector3.Distance2DSq(vecMyPosition, vecCastPosition) < nRange*nRange then
+						BotEcho("predicted enemy position in range!")
+						bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecCastPosition)
+						if bActionTaken then BotEcho("Ordered Sand!") end
+					end
 				end
 			end
 		end
@@ -826,6 +848,7 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
+--[[
 local function ManaRingAlwaysUtility(botBrain)
 	local itemManaRing = core.GetItem(sRingOfSorcery)
 	if(itemManaRing and itemManaRing:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-95)) then -- manaring uses 40 mana and gives 135
@@ -835,13 +858,14 @@ local function ManaRingAlwaysUtility(botBrain)
 end
 
 local function ManaRingAlwaysExecute(botBrain)
-		core.OrderItemClamp(botBrain, core.GetItem(sRingOfSorcery), true)
+		core.OrderItemClamp(botBrain, unitSelf, core.GetItem(sRingOfSorcery), true)
 end
 behaviorLib.ManaRingAlwaysBehavior = {}
 behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
 behaviorLib.ManaRingAlwaysBehavior["Execute"] = ManaRingAlwaysExecute
 behaviorLib.ManaRingAlwaysBehavior["Name"] = "ManaRingAlways"
 tinsert(behaviorLib.tBehaviors, behaviorLib.ManaRingAlwaysBehavior)
+]]
 
 --------------------------------------------------
 -- RetreatFromThreat Override --
@@ -908,7 +932,7 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 				end
 			end
 		end
-		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold  and abilDiguick:CanActivate() then
+		if behaviorLib.lastRetreatUtil> object.nRetreatQuicksandThreshold and abilDiguick:CanActivate() then
 			local nRange = abilDiguick:GetRange()
 			for key,hero in pairs(tThreats) do
 				local heroPos = hero:GetPosition()
