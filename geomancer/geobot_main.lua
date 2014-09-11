@@ -36,7 +36,7 @@ object.bAttackCommands  = true
 object.bAbilityCommands = true
 object.bOtherCommands   = true
 
-object.bReportBehavior 	= false
+object.bReportBehavior 	= true
 object.bDebugUtility 	= false
 
 object.logger 			= {}
@@ -156,7 +156,7 @@ object.nSheepstickUp = 7
 -- bonus aggression points that are applied to the bot upon successfully using a skill
 object.nDigUse = 30
 object.nSandUse = 18
-object.nGraspUse = 10
+object.nGraspUse = 4
 object.nCrystalUse = 25
 -- items
 object.nPortalkeyUse = 0
@@ -370,13 +370,13 @@ object.oncombatevent    = object.oncombateventOverride
 local function getTotalAggressiveManaCost()
 	local nTotalMana = skills.abilDig:GetManaCost() -- always save mana for this one, even if it's on CD
 
-	if skills.abilGrasp:CanActivate() then
+	if skills.abilGrasp:GetLevel() > 0 then
 		nTotalMana = nTotalMana + skills.abilGrasp:GetManaCost()
 	end
-	if skills.abilSand:CanActivate() then
+	if skills.abilSand:GetLevel() > 0 then
 		nTotalMana = nTotalMana + skills.abilSand:GetManaCost()
 	end
-	if skills.abilCrystal:CanActivate() then
+	if skills.abilCrystal:GetLevel() > 0 then
 		nTotalMana = nTotalMana + skills.abilCrystal:GetManaCost()
 	end
 
@@ -384,13 +384,13 @@ local function getTotalAggressiveManaCost()
 	local itemFrostfield = core.GetItem(sFrostfield)
 	local itemPortalkey  = core.GetItem(sPortalkey)
 
-	if itemSheepstick ~= nil and itemSheepstick:CanActivate() then
+	if itemSheepstick ~= nil then
 		nTotalMana = nTotalMana + itemSheepstick:GetManaCost()
 	end
-	if itemFrostfield ~= nil and itemFrostfield:CanActivate() then
+	if itemFrostfield ~= nil then
 		nTotalMana = nTotalMana + itemFrostfield:GetManaCost()
 	end
-	if itemPortalkey ~= nil and itemPortalkey:CanActivate() then
+	if itemPortalkey ~= nil then
 		nTotalMana = nTotalMana + itemPortalkey:GetManaCost()
 	end
 
@@ -493,9 +493,13 @@ local function funcAbilityPush(botBrain)
 			end
 		end
 	end
-	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nTotalMana then -- we have enough mana for at least another dig (escape)
+	if not bActionTaken and abilDig:CanActivate() and ( unitSelf:GetMana() - abilDig:GetManaCost() ) > nTotalMana then -- we have enough mana to fight if we have to
 		local count = 0
-		for _ in pairs(enemyCreeps) do count = count + 1 end
+		for key, value in pairs(enemyCreeps) do 
+			if not value:isMagicImmune() then 
+				count = count + 1
+			end
+		end -- there is no other way to get the size :/
 		BotEcho("There are " .. count .. " enemy creeps around.")
 		if count >= 3 then 
 			unitBestDigTarget = funcBestTargetAOE(enemyCreeps, object.nDigStunRadius)
@@ -682,7 +686,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				bDoGrasp = true
 			elseif ( unitTarget:GetMoveSpeed() < 365 or not bTargetCanMove ) then
 				BotEcho("is slow enough")
-				if nMana - nGraspCost > nTotalManaCost then
+				if nMana == unitSelf:GetMaxMana() or nMana - nGraspCost > nTotalManaCost then
 					BotEcho("Do the mana grasp")
 					bDoGrasp = true
 				elseif nGraspDamage > nTargetMagicHitPoints then
@@ -822,15 +826,16 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
-local function ManaRingAlwaysUtility(botBrain) 
-	if(core.itemReplenish and core.itemReplenish:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-135))  then
+local function ManaRingAlwaysUtility(botBrain)
+	local itemManaRing = core.GetItem(sRingOfSorcery)
+	if(itemManaRing and itemManaRing:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-95)) then -- manaring uses 40 mana and gives 135
 		return 100
 	end
 	return 0
 end
 
 local function ManaRingAlwaysExecute(botBrain)
-		core.OrderItemClamp(botBrain, unitSelf, core.itemReplenish, true)
+		core.OrderItemClamp(botBrain, core.GetItem(sRingOfSorcery), true)
 end
 behaviorLib.ManaRingAlwaysBehavior = {}
 behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
@@ -865,10 +870,11 @@ end
 --port in direction of well
 local function funcEscapePortal(botBrain)
 	local bActionTaken = false
-	if core.itemPortalkey and core.itemPortalkey:CanActivate() then
-		bActionTaken = core.OrderBlinkItemToEscape(botBrain,core.itemPortalkey,true,false)
+	local itemPortalkey = core.GetItem(sPortalkey)
+	if itemPortalkey and itemPortalkey:CanActivate() then
+		bActionTaken = core.OrderBlinkItemToEscape(botBrain, itemPortalkey, true, false)
 		if not bActionTaken then
-			bActionTaken = core.OrderItemPosition(botBrain,core.itemPortalkey,core.allyWell:GetPosition())
+			bActionTaken = core.OrderItemPosition(botBrain, itemPortalkey, core.allyWell:GetPosition())
 		object.bRetreating = true
 		end
 	end
@@ -930,9 +936,9 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	return core.OrderMoveToPosClamp(botBrain, core.unitSelf, vecPos, false)
 end
 
-object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
-object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
-behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
+--object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
+--object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
+--behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
 
 ------------------------------------------------
 --				Chat Overrides                --
