@@ -367,6 +367,8 @@ function object:oncombateventOverride(EventData)
 	
     local nAddBonus = 0
 
+    -- TODO: check if in push/retreat behaviour
+
     if EventData.Type == "Ability" then
     	BotEcho("  ABILILTY EVENT!  InflictorName: "..EventData.InflictorName)
     	nAddBonus = onAbilityEvent(EventData.InflictorName)
@@ -763,7 +765,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					BotEcho("target cannot move!")
 					bActionTaken = botBrain:OrderAbilityPosition(abilSand, vecTargetPosition)
 					if bActionTaken then BotEcho("Ordered Sand!") end
-				elseif itemSheepstick:CanActivate() and bCanSeeTarget then
+				elseif itemSheepstick and itemSheepstick:CanActivate() and bCanSeeTarget then
 					local nRange = itemSheepstick:GetRange()
 					if Vector3.Distance2DSq(vecMyPosition, vecTargetPosition) < nRange*nRange then
 						bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
@@ -771,7 +773,10 @@ local function HarassHeroExecuteOverride(botBrain)
 				else
 					local vecPredictedEnemyMovement = Vector3.Create(0, 0)
 					local nAngle = 0
-					if not unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition then
+					if unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition or unitTarget:GetHealthPercent() < .4 then
+						local vecEnemyToWell = core.enemyWell - vecTargetPosition
+						nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
+					else
 						local vecEnemyHeading = unitTarget:GetHeading()
 						if not vecEnemyHeading and unitTarget.storedPosition and unitTarget.lastStoredPosition then
 							vecEnemyHeading = core.enemyWell - vecTargetPosition
@@ -780,9 +785,6 @@ local function HarassHeroExecuteOverride(botBrain)
 							nAngle = atan2(vecEnemyHeading.y, vecEnemyHeading.x)
 							vecPredictedEnemyMovement = vecEnemyHeading * unitTarget:GetMoveSpeed() * castActionTime
 						end
-					else
-						local vecEnemyToWell = core.enemyWell - vecTargetPosition
-						nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
 					end
 					local vecOffset = Vector3.Create(cos(nAngle) * nOffset, sin(nAngle) * nOffset)
 					-- as cos(alpha) is the x, and sin the y component
@@ -808,14 +810,6 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilGrasp = skills.abilGrasp
 		local abilSand = skills.abilSand
 		local abilCrystal = skills.abilCrystal
-		
-		
-		if not bActionTaken and itemSheepstick then
-			local nRange = itemSheepstick:GetRange()
-			if itemSheepstick:CanActivate() and not bTargetVuln and nLastHarassUtility > botBrain.nSheepstickThreshold and nTargetDistanceSq < (nRange*nRange) then
-				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
-			end
-		end
 		
 		if not bActionTaken and abilDig:CanActivate() then
 			local nRange = abilDig:GetRange()
