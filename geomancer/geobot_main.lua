@@ -198,6 +198,7 @@ object.nGraspRadius = 180
 object.nQuicksandRadius = 	250
 object.nRetreatDigTime = 0
 object.bRetreating = false
+object.bAttackDigging = false
 
 -- diving Threshold
 behaviorLib.diveThreshold = 96
@@ -675,6 +676,7 @@ local function HarassHeroExecuteOverride(botBrain)
 --   don't grasp when target is too fast (>= 365 movementspeed)
 --   sand when high aggression to start initiation
 --   don't sand when no damage abilities up and no allies are around
+--   use sheepstick like sand
 --  TODO:
 --   dig in when target has hardly chance to escape
 --      check for own distance to him
@@ -683,7 +685,6 @@ local function HarassHeroExecuteOverride(botBrain)
 --   crystal when many people together (as that is probably a teamfight and you want to spread them)    
 --   crystal when at least one target has no chance to escape and aggression is high
 --   pk in when high aggression and enough TotalMana
---   use sheepstick like sand
 --   use FFplate after a PK in
 	
 	local bTargetCanMove = not unitTarget:IsStunned() and not unitTarget:IsImmobilized()
@@ -802,6 +803,25 @@ local function HarassHeroExecuteOverride(botBrain)
 		end
 	end
 
+
+	-- Dig
+	if not bActionTaken and abilDig:CanActivate() then
+		BotEcho("Should I dig or should i go?")
+		local vecCastPosition = nil
+		local nTimeNeededToTarget = math.sqrt(nTargetDistanceSq) / 700 -- 700 is the digging speed
+		local nUnitsTargetCanRun = nTimeNeededToTarget * unitTarget:GetMoveSpeed()
+		BotEcho("Time to Target: " .. nTimeNeededToTarget .. ", units target can run: " .. nUnitsTargetCanRun)
+		if nUnitsTargetCanRun < object.nDigStunRadius then
+			vecCastPosition = vecTargetPosition
+		end
+		-- TODO: add some more behaviour.
+		if vecCastPosition then
+			object.bRetreating = false
+			object.bAttackDigging = true
+			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecCastPosition)
+		end
+	end
+
     if core.CanSeeUnit(botBrain, unitTarget) then
 		local bTargetVuln = unitTarget:IsStunned() or unitTarget:IsImmobilized()
 		local bTargetSlowed = unitTarget:GetMoveSpeed() < 200
@@ -811,7 +831,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		local abilSand = skills.abilSand
 		local abilCrystal = skills.abilCrystal
 		
-		if not bActionTaken and abilDig:CanActivate() then
+		--[[ if not bActionTaken and abilDig:CanActivate() then
 			local nRange = abilDig:GetRange()
 			local nRangeSq = nRange*nRange
 			
@@ -838,7 +858,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					end
 				end
 			end
-		end
+		end ]]
 		
 		if not bActionTaken and abilCrystal:CanActivate() then
 			local nRange = abilCrystal:GetRange()
@@ -870,6 +890,35 @@ end
 -- overload the behaviour stock function with custom 
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
+
+
+
+-------------------------------------------------
+-- Custom Behaviour to break the digging
+-------------------------------------------------
+function behaviorLib.DigUtility(botBrain)
+	if core.unitSelf:HasState("State_Geomancer_Ability1_Self") and object.bAttackDigging then
+		return 100
+	end
+	return 0
+end
+
+function behaviorLib.DigExecute(botBrain)
+	local enemyHeroes = core.localUnits["EnemyHeroes"]
+	for key, value in pairs(enemyHeroes) do
+		local nTargetDistanceSq = Vector3.Distance2DSq(core.unitSelf:GetPosition(), value:GetPosition())
+		if nTargetDistanceSq < nDigStunRadiusSq then
+			core.OrderAbility(botBrain, abilDig)
+			BotEcho("Did I hit him? did i??")
+			object.bAttackDigging = false
+		end
+	end
+end
+behaviorLib.DigBehavior = {}
+behaviorLib.DigBehavior["Utility"] = behaviorLib.DigUtility
+behaviorLib.DigBehavior["Execute"] = behaviorLib.DigExecute
+behaviorLib.DigBehavior["Name"] = "Heal"
+tinsert(behaviorLib.tBehaviors, behaviorLib.DigBehavior)
 
 
 --------------------------------------------------
