@@ -774,7 +774,7 @@ local function HarassHeroExecuteOverride(botBrain)
 					local vecPredictedEnemyMovement = Vector3.Create(0, 0)
 					local nAngle = 0
 					if unitTarget.blsMemoryUnit or unitTarget.storedPosition ~= unitTarget.lastStoredPosition or unitTarget:GetHealthPercent() < .4 then
-						local vecEnemyToWell = core.enemyWell - vecTargetPosition
+						local vecEnemyToWell = core.enemyWell:GetPosition() - vecTargetPosition
 						nAngle = atan2(vecEnemyToWell.y, vecEnemyToWell.x)
 					else
 						local vecEnemyHeading = unitTarget:GetHeading()
@@ -992,7 +992,8 @@ object.killMessages.General = {
     "You didn't see that one coming, did you?",
     "Feels good.",
     "Tired already?",
-    "No diggedy, no doubt."
+    "No diggedy, no doubt.",
+    "I am the drill that pierces the heavens!"
     }
   
 local function ProcessKillChatOverride(unitTarget, sTargetPlayerName)
@@ -1020,7 +1021,10 @@ object.respawnMessages.General = {
     "Keep calm and continue playing!",
     "When life gives you lemons, make life take the lemons back",
     "Aaah, the feeling of solid ground under my feet...",
-    "Why did i turn into a bug? D:"
+    "Why did i turn into a bug? D:",
+    "Someday I'll turn into a beautiful butterfly.",
+    "Did you know Monarch was my mother?",
+    "Did you know Tremble was my father?"
     }
   
 local function ProcessRespawnChatOverride(unitTarget, sTargetPlayerName)
@@ -1047,7 +1051,8 @@ object.deathMessages.General = {
     "Happens.",
     "I kinda.. stumbled over my own feet.",
     "Oh sh** my cat is on fire!",
-    "Oh.. how very kafkaesque.."
+    "Oh.. how very kafkaesque..",
+    "See you on the other side."
     }
   
 local function ProcessDeathChatOverride(unitTarget, sTargetPlayerName)
