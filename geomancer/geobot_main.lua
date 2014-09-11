@@ -178,8 +178,8 @@ object.nSheepstickThreshold = 40
 
 -- thresholds for retreating
 object.nRetreatQuicksandThreshold = 93
-object.nRetreatDigThreshold = 94
-object.nRetreatPortThreshold = 95
+object.nRetreatDigThreshold = 90
+object.nRetreatPortThreshold = 90
 object.nRetreatFrostfieldThreshold = 92
 object.nRetreatSheepThreshold = 93
 
@@ -190,7 +190,7 @@ object.nEnemyBaseThreat = 6
 --values used for correct placement and casting of skills
 object.vecStunTargetPos = nil
 object.nDigTime = 0
-object.bStunned = false
+object.bDigging = false
 object.nTimeNeededForDistance = 0
 object.nDigStunRadius = 250
 object.nDigStunRadiusSq = object.nDigStunRadius*object.nDigStunRadius
@@ -255,9 +255,9 @@ local function funcCastDig(botBrain, vecTargetPosition, unitTarget)
 	local bActionTaken = false
 	local abilDig = skills.abilDig
 	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance or Vector3.Distance2DSq(unitTarget:GetPosition(), core.unitSelf:GetPosition()) < object.nDigStunRadiusSq then
-		if object.bStunned == true then
+		if object.bDigging == true then
 			bActionTaken = core.OrderAbility(botBrain, abilDig)
-			object.bStunned = false
+			object.bDigging = false
 		else
 			object.bRetreating = false
 			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
@@ -265,12 +265,33 @@ local function funcCastDig(botBrain, vecTargetPosition, unitTarget)
 			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
 			vecStunTargetPos = funcPredictNextPosition(botBrain, unitTarget, vecStunTargetPos,  object.nDigStunRadius) 
 			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
-			object.bStunned = true
+			object.bDigging = true
 		end
 	end
 	
 	return bActionTaken
 end
+
+local function funcCastEscapeDig(botBrain, vecTargetPosition)
+	local bActionTaken = false
+	local abilDig = skills.abilDig
+	if HoN.GetGameTime()-object.nDigTime > object.nTimeNeededForDistance then
+		if object.bDigging == true then
+			bActionTaken = core.OrderAbility(botBrain, abilDig)
+			object.bDigging = false
+		else
+			object.bRetreating = false
+			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, vecTargetPosition)
+			object.nDigTime = HoN.GetGameTime()
+			vecStunTargetPos = Vector3.Create(vecTargetPosition.x, vecTargetPosition.y, vecTargetPosition.z)
+			object.nTimeNeededForDistance = (Vector3.Distance(vecStunTargetPos, core.unitSelf:GetPosition())/700)*1000
+			object.bDigging = true
+		end
+	end
+	
+	return bActionTaken
+end
+
 
 -- onthink Override
 function object:onthinkOverride(tGameVariables)
@@ -567,7 +588,7 @@ local function createRelativeMovementTable(key)
 end
 -- createRelativeMovementTable("GeoSand") -- for aggressive sand
 createRelativeMovementTable("GeoDig")
-createRelativeMovementTable("CreepPush") -- for creep-groups while pushing (meteor)
+createRelativeMovementTable("CreepPush") -- for creep-groups while pushing (Dig)
 
 local function relativeMovement(sKey, vTargetPos)
 	local debugEchoes = false
@@ -835,7 +856,7 @@ local function HarassHeroExecuteOverride(botBrain)
 				if (nLastHarassUtility + object.nRootedAggressionBonus) > botBrain.nCrystalThreshold then
 					if nTargetDistanceSq < nRangeSq then
 						 vecCrystalTargetPosition = core.GetGroupCenter(core.localUnits["EnemyHeroes"])
-						bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
+						 bActionTaken = core.OrderAbilityPosition(botBrain, abilCrystal, vecCrystalTargetPosition)
 					end
 				end
 			elseif nLastHarassUtility > botBrain.nCrystalThreshold then
@@ -856,24 +877,6 @@ end
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
 behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
---[[
-local function ManaRingAlwaysUtility(botBrain)
-	local itemManaRing = core.GetItem(sRingOfSorcery)
-	if(itemManaRing and itemManaRing:CanActivate() and core.unitSelf:GetMana()<(core.unitSelf:GetMaxMana()-95)) then -- manaring uses 40 mana and gives 135
-		return 100
-	end
-	return 0
-end
-
-local function ManaRingAlwaysExecute(botBrain)
-		core.OrderItemClamp(botBrain, unitSelf, core.GetItem(sRingOfSorcery), true)
-end
-behaviorLib.ManaRingAlwaysBehavior = {}
-behaviorLib.ManaRingAlwaysBehavior["Utility"] = ManaRingAlwaysUtility
-behaviorLib.ManaRingAlwaysBehavior["Execute"] = ManaRingAlwaysExecute
-behaviorLib.ManaRingAlwaysBehavior["Name"] = "ManaRingAlways"
-tinsert(behaviorLib.tBehaviors, behaviorLib.ManaRingAlwaysBehavior)
-]]
 
 --------------------------------------------------
 -- RetreatFromThreat Override --
@@ -887,12 +890,14 @@ end
 
 --cast dig in direction of well
 local function funcEscapeDig(botBrain)
+	BotEcho('Escape dig')
 	local abilDig = skills.abilDig
 	local bActionTaken = false
+	local vecTarget = behaviorLib.GetSafeBlinkPosition(core.allyWell:GetPosition(), abilDig:GetRange())
 	if abilDig:CanActivate() and core.unitSelf:GetHealthPercent() < .425 then
-		bActionTaken = core.OrderBlinkAbilityToEscape(botBrain, abilDig)
+		bActionTaken = funcCastEscapeDig(botBrain, vecTarget)
 		if not bActionTaken then
-			bActionTaken = core.OrderAbilityPosition(botBrain, abilDig, core.allyWell:GetPosition())
+			bActionTaken = funcCastEscapeDig(botBrain, core.allyWell:GetPosition())
 		end
 		object.bRetreating=true
 	end
@@ -926,6 +931,7 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	if behaviorLib.lastRetreatUtil> object.nRetreatDigThreshold and funcEscapeDig(botBrain) then return true end
 	if behaviorLib.lastRetreatUtil> object.nRetreatPortThreshold and funcEscapePortal(botBrain) then return true end
 	
+	BotEcho('RetreatUtil: '..nlastRetreatUtil)
 	local tThreats = core.localUnits["EnemyHeroes"]
 	if tThreats ~= nil then
 		if behaviorLib.lastRetreatUtil> object.nRetreatFrostfieldThreshold and core.itemFrostfield and core.itemFrostfield:CanActivate() then
@@ -968,9 +974,8 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	return core.OrderMoveToPosClamp(botBrain, core.unitSelf, vecPos, false)
 end
 
---object.RetreatFromThreatUtilityOld = behaviorLib.RetreatFromThreatUtility
---object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
---behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
+object.RetreatFromThreatExecuteOld = behaviorLib.RetreatFromThreatExecute
+behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteOverride
 
 ------------------------------------------------
 --				Chat Overrides                --
@@ -1036,7 +1041,6 @@ object.deathMessages.General = {
     "Oh.. I think my dev missed a semicolon there.",
     "Happens.",
     "I kinda.. stumbled over my own feet.",
-    "Still better than Kurkuma.",
     "Oh sh** my cat is on fire!",
     "Oh.. how very kafkaesque.."
     }
